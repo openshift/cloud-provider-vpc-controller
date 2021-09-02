@@ -22,26 +22,11 @@ language: go
 go:
 - 1.16.6
 
-git:
-  depth: 9999
-
-matrix:
-  fast_finish: true
-
 cache:
   bundler: true
   directories:
     - $GOPATH/pkg/mod/cache/download
   timeout: 3600
-
-sudo: true
-
-services:
-  - docker
-
-addons:
-  apt:
-    update: true
 
 before_install:
   - make deps

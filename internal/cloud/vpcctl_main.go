@@ -76,7 +76,7 @@ func CreateLoadBalancer(lbName, kubeService string) error {
 	}
 
 	// Check to see if the VPC load balancer already exists
-	lb, err := c.FindLoadBalancer(lbName)
+	lb, err := c.FindLoadBalancer(lbName, service)
 	if err != nil {
 		klog.Errorf("FindLoadBalancer failed: %v\n", err)
 		return err
@@ -142,7 +142,7 @@ func DeleteLoadBalancer(lbName string) error {
 	}
 
 	// Check to see if the VPC load balancer already exists
-	lb, err := c.FindLoadBalancer(lbName)
+	lb, err := c.FindLoadBalancer(lbName, nil)
 	if err != nil {
 		klog.Errorf("FindLoadBalancer failed: %v\n", err)
 		return err
@@ -152,7 +152,7 @@ func DeleteLoadBalancer(lbName string) error {
 		service, err := getKubeService(c.KubeClient, lbName)
 		if err == nil {
 			lbName = c.GenerateLoadBalancerName(service)
-			lb, err = c.FindLoadBalancer(lbName)
+			lb, err = c.FindLoadBalancer(lbName, service)
 			if err != nil {
 				klog.Errorf("FindLoadBalancer failed: %v\n", err)
 				return err
@@ -177,7 +177,7 @@ func DeleteLoadBalancer(lbName string) error {
 	}
 
 	// Attempt to delete the load balancer.
-	err = c.DeleteLoadBalancer(lb)
+	err = c.DeleteLoadBalancer(lb, nil)
 	if err != nil {
 		klog.Errorf("DeleteLoadBalancer failed: %v\n", err)
 		return err
@@ -260,7 +260,7 @@ func StatusLoadBalancer(lbName string) error {
 	}
 
 	// Retrieve the VPC load balancer matching the name/id that passed in
-	lb, err := c.FindLoadBalancer(lbName)
+	lb, err := c.FindLoadBalancer(lbName, nil)
 	if err != nil {
 		klog.Errorf("FindLoadBalancer failed: %v\n", err)
 		return err
@@ -327,7 +327,7 @@ func UpdateLoadBalancer(lbName, kubeService string) error {
 	}
 
 	// Check to see if the VPC load balancer already exists
-	lb, err := c.FindLoadBalancer(lbName)
+	lb, err := c.FindLoadBalancer(lbName, service)
 	if err != nil {
 		klog.Errorf("FindLoadBalancer failed: %v\n", err)
 		return err

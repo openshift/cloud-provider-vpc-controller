@@ -147,13 +147,13 @@ func TestCloudVpc_DeleteLoadBalancer(t *testing.T) {
 	c := &CloudVpc{Sdk: s}
 
 	// Delete load balancer failed, LB not specified
-	err := c.DeleteLoadBalancer(nil)
+	err := c.DeleteLoadBalancer(nil, nil)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Required argument is missing")
 
 	// Delete load balancer worked
 	lb := &VpcLoadBalancer{ID: "Ready"}
-	err = c.DeleteLoadBalancer(lb)
+	err = c.DeleteLoadBalancer(lb, nil)
 	assert.Nil(t, err)
 }
 
@@ -161,17 +161,17 @@ func TestCloudVpc_FindLoadBalancer(t *testing.T) {
 	s, _ := NewVpcSdkFake()
 	c := &CloudVpc{Sdk: s}
 	// Load balancer failed, name not specified
-	lb, err := c.FindLoadBalancer("")
+	lb, err := c.FindLoadBalancer("", nil)
 	assert.Nil(t, lb)
 	assert.NotNil(t, err)
 
 	// Load balancer not found
-	lb, err = c.FindLoadBalancer("lb")
+	lb, err = c.FindLoadBalancer("lb", nil)
 	assert.Nil(t, lb)
 	assert.Nil(t, err)
 
 	// Load balancer was found
-	lb, err = c.FindLoadBalancer("Ready")
+	lb, err = c.FindLoadBalancer("Ready", nil)
 	assert.NotNil(t, lb)
 	assert.Nil(t, err)
 }

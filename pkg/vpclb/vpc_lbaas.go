@@ -424,7 +424,7 @@ func (c *CloudVpc) createLoadBalancerPoolMember(lb *VpcLoadBalancer, args, optio
 }
 
 // DeleteLoadBalancer - delete a VPC load balancer
-func (c *CloudVpc) DeleteLoadBalancer(lb *VpcLoadBalancer) error {
+func (c *CloudVpc) DeleteLoadBalancer(lb *VpcLoadBalancer, service *v1.Service) error {
 	if lb == nil {
 		return fmt.Errorf("Required argument is missing")
 	}
@@ -467,7 +467,7 @@ func (c *CloudVpc) deleteLoadBalancerPoolMember(lb *VpcLoadBalancer, args string
 }
 
 // FindLoadBalancer - locate a VPC load balancer based on the Name, ID, or hostname
-func (c *CloudVpc) FindLoadBalancer(nameID string) (*VpcLoadBalancer, error) {
+func (c *CloudVpc) FindLoadBalancer(nameID string, service *v1.Service) (*VpcLoadBalancer, error) {
 	if nameID == "" {
 		return nil, fmt.Errorf("Required argument is missing")
 	}
@@ -557,7 +557,7 @@ func (c *CloudVpc) MonitorLoadBalancers(services *v1.ServiceList) (map[string]*v
 		// "INFO:" statement, it will just be logged.
 		if lbMap[lb.Name] == nil && npMap[lb.Name] == nil {
 			klog.Infof("Deleting stale VPC LB: %s", lb.GetSummary())
-			err := c.DeleteLoadBalancer(lb)
+			err := c.DeleteLoadBalancer(lb, nil)
 			if err != nil {
 				// Add an error message to log, but don't fail the entire MONITOR operation
 				klog.Errorf("Failed to delete stale VPC LB: %s", lb.Name)
