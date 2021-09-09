@@ -43,7 +43,6 @@ func TestRunCmd(t *testing.T) {
 		{cmd: "monitor", wantErr: true, errString: invalidKubeConfig},
 		{cmd: "status-lb", wantErr: true, errString: requiredArgMissing},
 		{cmd: "update-lb", wantErr: true, errString: requiredArgMissing},
-		{cmd: "sdk-create-lb", wantErr: true, errString: requiredArgMissing},
 	}
 	os.Setenv("KUBECONFIG", "/tmp/invalid/subdir/non-existant-kubeconfig.cfg")
 	for _, tt := range tests {

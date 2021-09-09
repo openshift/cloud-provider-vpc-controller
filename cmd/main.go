@@ -25,7 +25,7 @@ import (
 	"os"
 	"strings"
 
-	"cloud.ibm.com/cloud-provider-vpc-controller/internal/cloud"
+	"cloud.ibm.com/cloud-provider-vpc-controller/internal/cli"
 )
 
 // Global variables
@@ -70,19 +70,15 @@ func runCmd(cmd, arg1, arg2 string) error {
 	var err error
 	switch cmd {
 	case "create-lb":
-		err = cloud.CreateLoadBalancer(arg1, arg2)
+		err = cli.CreateLoadBalancer(arg1, arg2)
 	case "delete-lb":
-		err = cloud.DeleteLoadBalancer(arg1)
+		err = cli.DeleteLoadBalancer(arg1)
 	case "monitor":
-		err = cloud.MonitorLoadBalancers()
+		err = cli.MonitorLoadBalancers()
 	case "status-lb":
-		err = cloud.StatusLoadBalancer(arg1)
+		err = cli.StatusLoadBalancer(arg1)
 	case "update-lb":
-		err = cloud.UpdateLoadBalancer(arg1, arg2)
-
-	// Need to include "sdk-create-lb" because it is used by cloud provider for "proxy-protocol"
-	case "sdk-create-lb":
-		err = cloud.CreateLoadBalancer(arg1, arg2)
+		err = cli.UpdateLoadBalancer(arg1, arg2)
 
 	// Miscellaneous options
 	case "help":
