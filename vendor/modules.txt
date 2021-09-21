@@ -1,7 +1,7 @@
-# github.com/IBM/go-sdk-core/v5 v5.6.4
+# github.com/IBM/go-sdk-core/v5 v5.6.5
 ## explicit
 github.com/IBM/go-sdk-core/v5/core
-# github.com/IBM/vpc-go-sdk v0.9.0
+# github.com/IBM/vpc-go-sdk v0.10.0
 ## explicit
 github.com/IBM/vpc-go-sdk/common
 github.com/IBM/vpc-go-sdk/vpcv1
@@ -11,7 +11,7 @@ github.com/asaskevich/govalidator
 github.com/davecgh/go-spew/spew
 # github.com/evanphx/json-patch v4.11.0+incompatible
 github.com/evanphx/json-patch
-# github.com/go-logr/logr v0.4.0
+# github.com/go-logr/logr v1.0.0
 github.com/go-logr/logr
 # github.com/go-openapi/errors v0.20.0
 ## explicit
@@ -418,7 +418,7 @@ k8s.io/client-go/util/flowcontrol
 k8s.io/client-go/util/homedir
 k8s.io/client-go/util/keyutil
 k8s.io/client-go/util/workqueue
-# k8s.io/klog/v2 v2.10.0
+# k8s.io/klog/v2 v2.20.0
 ## explicit
 k8s.io/klog/v2
 # k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e
