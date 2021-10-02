@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"testing"
 
-	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpclb"
+	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,8 +40,8 @@ func getSecretNotFound() kubernetes.Interface {
 }
 func getSecretData(secretData string) kubernetes.Interface {
 	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: vpclb.VpcSecretFileName, Namespace: vpclb.VpcSecretNamespace},
-		Data:       map[string][]byte{vpclb.VpcClientDataKey: []byte(secretData)},
+		ObjectMeta: metav1.ObjectMeta{Name: vpcctl.VpcSecretFileName, Namespace: vpcctl.VpcSecretNamespace},
+		Data:       map[string][]byte{vpcctl.VpcClientDataKey: []byte(secretData)},
 	}
 	return fake.NewSimpleClientset(secret)
 }
@@ -52,8 +52,8 @@ var gen2Data = `[VPC]
    g2_resource_group_id = "resourceGroup"
    g2_api_key = "foobar"
    provider_type = "g2"`
-var gen2CloudVpc = &vpclb.CloudVpc{
-	Config: vpclb.ConfigVpc{
+var gen2CloudVpc = &vpcctl.CloudVpc{
+	Config: vpcctl.ConfigVpc{
 		APIKeySecret:     "foobar",
 		ClusterID:        cluster,
 		EnablePrivate:    true,
@@ -72,7 +72,7 @@ func TestNewCloudVpc(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *vpclb.CloudVpc
+		want    *vpcctl.CloudVpc
 		wantErr bool
 	}{
 		{

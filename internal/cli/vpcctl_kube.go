@@ -29,7 +29,7 @@ import (
 	"strings"
 
 	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/klog"
-	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpclb"
+	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
 	"gopkg.in/gcfg.v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -77,7 +77,7 @@ func cloudInit() (kubernetes.Interface, string, error) {
 	// If env var is set, use the specified VPC LB prefix instead of "kube-"
 	lbPrefix := strings.ToLower(os.Getenv(envVarLbPrefix))
 	if lbPrefix != "" {
-		vpclb.VpcLbNamePrefix = lbPrefix
+		vpcctl.VpcLbNamePrefix = lbPrefix
 	}
 	return client, clusterID, err
 }

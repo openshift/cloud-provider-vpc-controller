@@ -25,7 +25,7 @@ import (
 
 	"cloud.ibm.com/cloud-provider-vpc-controller/internal/ibm"
 	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/klog"
-	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpclb"
+	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
 )
 
 // Initialize logging to go to stdout
@@ -189,7 +189,7 @@ func DeleteLoadBalancer(lbName string) error {
 }
 
 // GetCloudProviderVpc - Retrieve cloud provider CloudVpc object
-func GetCloudProviderVpc() (*vpclb.CloudVpc, error) {
+func GetCloudProviderVpc() (*vpcctl.CloudVpc, error) {
 	client, clusterID, err := cloudInit()
 	if err != nil {
 		return nil, err

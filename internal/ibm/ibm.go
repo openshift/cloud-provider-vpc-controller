@@ -20,7 +20,7 @@
 package ibm
 
 import (
-	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpclb"
+	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
 	clientset "k8s.io/client-go/kubernetes"
 )
 
@@ -40,5 +40,5 @@ type CloudConfig struct {
 type Cloud struct {
 	KubeClient clientset.Interface
 	Config     *CloudConfig
-	Vpc        *vpclb.CloudVpc
+	Vpc        *vpcctl.CloudVpc
 }

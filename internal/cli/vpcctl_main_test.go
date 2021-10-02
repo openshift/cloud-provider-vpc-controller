@@ -22,7 +22,7 @@ package cli
 import (
 	"testing"
 
-	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpclb"
+	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
 	"github.com/stretchr/testify/assert"
 
 	v1 "k8s.io/api/core/v1"
@@ -39,8 +39,8 @@ var (
 	mockService = &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "1234"}}
 	mockSubnetMap = &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: vpclb.VpcCloudProviderConfigMap, Namespace: vpclb.VpcCloudProviderNamespace},
-		Data:       map[string]string{vpclb.VpcCloudProviderSubnetsKey: "subnetID"}}
+		ObjectMeta: metav1.ObjectMeta{Name: vpcctl.VpcCloudProviderConfigMap, Namespace: vpcctl.VpcCloudProviderNamespace},
+		Data:       map[string]string{vpcctl.VpcCloudProviderSubnetsKey: "subnetID"}}
 )
 
 func TestCreateLoadBalancer(t *testing.T) {

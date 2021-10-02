@@ -20,13 +20,13 @@
 package ibm
 
 import (
-	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpclb"
+	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
 	"k8s.io/client-go/kubernetes"
 )
 
 // NewCloudVpc the client
-func NewCloudVpc(kubeClient kubernetes.Interface, clusterID string, enablePrivateEndpoint bool) (*vpclb.CloudVpc, error) {
-	c := &vpclb.CloudVpc{KubeClient: kubeClient}
+func NewCloudVpc(kubeClient kubernetes.Interface, clusterID string, enablePrivateEndpoint bool) (*vpcctl.CloudVpc, error) {
+	c := &vpcctl.CloudVpc{KubeClient: kubeClient}
 	secretData, err := c.ReadKubeSecret()
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func NewCloudVpc(kubeClient kubernetes.Interface, clusterID string, enablePrivat
 	if err != nil {
 		return nil, err
 	}
-	c.Sdk, err = vpclb.NewCloudVpcSdk(&c.Config)
+	c.Sdk, err = vpcctl.NewCloudVpcSdk(&c.Config)
 	if err != nil {
 		return nil, err
 	}
