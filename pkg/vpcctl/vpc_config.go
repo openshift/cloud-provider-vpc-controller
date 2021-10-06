@@ -149,6 +149,30 @@ type CloudVpc struct {
 	Sdk        CloudVpcSdk
 }
 
+// CloudVpcOptions is the main VPC cloud provider implementation.
+type CloudVpcOptions struct {
+	ClusterID       string
+	EnablePrivate   bool
+	WorkerAccountID string
+}
+
+func NewCloudVpc(kubeClient kubernetes.Interface, options *CloudVpcOptions) (*CloudVpc, error) {
+	c := &CloudVpc{KubeClient: kubeClient}
+	secretData, err := c.ReadKubeSecret()
+	if err != nil {
+		return nil, err
+	}
+	err = c.Config.Initialize(options.ClusterID, secretData, options.EnablePrivate)
+	if err != nil {
+		return nil, err
+	}
+	c.Sdk, err = NewCloudVpcSdk(&c.Config)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 func (c *CloudVpc) IsServiceFeatureEnabled(service *v1.Service, loadbalancerOption string) bool {
 	if service == nil || loadbalancerOption == "" {
 		return false

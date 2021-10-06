@@ -21,12 +21,18 @@ package vpcctl
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+)
+
+const (
+	cluster = "bqcssbbd0bsui62odcdg"
 )
 
 var gen2Data = `[VPC]
@@ -39,12 +45,12 @@ iks_token_exchange_endpoint_private_url = "https://private.us-south.containers.c
 var gen2CloudVpc = &CloudVpc{
 	Config: ConfigVpc{
 		APIKeySecret:     "foobar",
-		ClusterID:        "bqcssbbd0bsui62odcdg",
+		ClusterID:        cluster,
 		EnablePrivate:    true,
 		EndpointURL:      "https://private-us-south.iaas.cloud.ibm.com:443/v1",
 		ProviderType:     "g2",
 		ResourceGroupID:  "resourceGroup",
-		TokenExchangeURL: "https://private.us-south.containers.cloud.ibm.com/identity/token",
+		TokenExchangeURL: "https://private.iam.cloud.ibm.com/identity/token",
 	}}
 
 var mockCloud = CloudVpc{KubeClient: fake.NewSimpleClientset()}
@@ -64,6 +70,70 @@ var mockNode3 = &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.3.3",
 // Node without InternalIP label with nil Addresses status
 var mockNode4 = &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.1.1",
 	Labels: map[string]string{nodeLabelZone: "zoneA", nodeLabelDedicated: nodeLabelValueEdge}}, Status: v1.NodeStatus{Addresses: nil}}
+
+func getSecretNotFound() kubernetes.Interface {
+	return fake.NewSimpleClientset()
+}
+func getSecretData(secretData string) kubernetes.Interface {
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: VpcSecretFileName, Namespace: VpcSecretNamespace},
+		Data:       map[string][]byte{VpcClientDataKey: []byte(secretData)},
+	}
+	return fake.NewSimpleClientset(secret)
+}
+
+func TestNewCloudVpc(t *testing.T) {
+	type args struct {
+		kubeClient            kubernetes.Interface
+		clusterID             string
+		enablePrivateEndpoint bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *CloudVpc
+		wantErr bool
+	}{
+		{
+			name: "No secret",
+			args: args{kubeClient: getSecretNotFound(), clusterID: cluster, enablePrivateEndpoint: false},
+			want: nil, wantErr: true,
+		},
+		{
+			name: "No [VPC] data in the secret",
+			args: args{kubeClient: getSecretData("Secret Data"), clusterID: cluster, enablePrivateEndpoint: false},
+			want: nil, wantErr: true,
+		},
+		{
+			name: "No API Key in the secret",
+			args: args{kubeClient: getSecretData("[VPC]"), clusterID: cluster, enablePrivateEndpoint: false},
+			want: nil, wantErr: true,
+		},
+		{
+			name: "Valid Gen2 secret - encrypted / private service endpoint",
+			args: args{kubeClient: getSecretData(gen2Data), clusterID: cluster, enablePrivateEndpoint: true},
+			want: gen2CloudVpc, wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			options := &CloudVpcOptions{
+				ClusterID:       tt.args.clusterID,
+				EnablePrivate:   tt.args.enablePrivateEndpoint,
+				WorkerAccountID: "workerAccountID",
+			}
+			got, err := NewCloudVpc(tt.args.kubeClient, options)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewCloudVpc() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			// if got != nil && tt.want != nil && !equalCloudVpc(got, tt.want) {
+			if got != nil && tt.want != nil && !reflect.DeepEqual(got.Config, tt.want.Config) {
+				t.Errorf("NewCloudVpc()\ngot = %+v\nwant = %+v", got.Config, tt.want.Config)
+			}
+		})
+	}
+}
 
 func TestConfigVpc_GetSummary(t *testing.T) {
 	config := ConfigVpc{
