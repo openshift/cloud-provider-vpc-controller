@@ -170,12 +170,6 @@ func DeleteLoadBalancer(lbName string) error {
 	// Return basic stats about the load balancer for the cloud provider to log
 	klog.Infof(lb.GetSummary())
 
-	// Check the state of the load balancer to determine if the delete operation can even be attempted
-	if !lb.IsReady() {
-		klog.Pending(lb.GetStatus())
-		return nil
-	}
-
 	// Attempt to delete the load balancer.
 	err = c.DeleteLoadBalancer(lb, nil)
 	if err != nil {

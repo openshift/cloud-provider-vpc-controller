@@ -116,11 +116,6 @@ func TestDeleteLoadBalancer(t *testing.T) {
 	err = DeleteLoadBalancer("echo-server")
 	assert.Nil(t, err)
 
-	// Valid config map / secret - LB found, not ready
-	mockKubeCtl = fake.NewSimpleClientset(mockConfigMap, mockSecret, mockService)
-	err = DeleteLoadBalancer("NotReady")
-	assert.Nil(t, err)
-
 	// Valid config map / secret - LB found, Ready, Deleted
 	mockKubeCtl = fake.NewSimpleClientset(mockConfigMap, mockSecret, mockService)
 	err = DeleteLoadBalancer("Ready")
