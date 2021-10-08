@@ -176,6 +176,18 @@ func TestCloudVpc_FindLoadBalancer(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestCloudVpc_GetLoadBalancerStatus(t *testing.T) {
+	c := &CloudVpc{}
+	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{
+		Name: "echo-server", Namespace: "default"}}
+	// Standard VPC LB
+	status := c.GetLoadBalancerStatus(service, "hostname")
+	assert.NotNil(t, status)
+	assert.Equal(t, len(status.Ingress), 1)
+	assert.Equal(t, status.Ingress[0].Hostname, "hostname")
+	assert.Equal(t, status.Ingress[0].IP, "")
+}
+
 func TestCloudVpc_getLoadBalancersInCluster(t *testing.T) {
 	s, _ := NewVpcSdkFake()
 	c := &CloudVpc{Sdk: s}

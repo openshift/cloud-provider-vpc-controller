@@ -500,6 +500,13 @@ func (c *CloudVpc) getLoadBalancersInCluster() ([]*VpcLoadBalancer, error) {
 	return clusterLbs, nil
 }
 
+// GetLoadBalancerStatus returns the load balancer status for a given VPC host name
+func (c *CloudVpc) GetLoadBalancerStatus(service *v1.Service, hostname string) *v1.LoadBalancerStatus {
+	lbStatus := &v1.LoadBalancerStatus{}
+	lbStatus.Ingress = []v1.LoadBalancerIngress{{Hostname: hostname}}
+	return lbStatus
+}
+
 // MonitorLoadBalancers - returns status of all VPC load balancers associated with Kube LBs in this cluster
 func (c *CloudVpc) MonitorLoadBalancers(services *v1.ServiceList) (map[string]*v1.Service, map[string]*VpcLoadBalancer, error) {
 	// Verify we were passed a list of Kube services
