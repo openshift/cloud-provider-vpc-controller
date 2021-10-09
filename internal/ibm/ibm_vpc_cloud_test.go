@@ -28,6 +28,7 @@ import (
 
 func TestCloud_InitCloudVpc(t *testing.T) {
 	c := Cloud{Config: &CloudConfig{Prov: Provider{ClusterID: "clusterID"}}, KubeClient: fake.NewSimpleClientset()}
-	err := c.InitCloudVpc(true)
+	v, err := c.InitCloudVpc(true)
+	assert.Nil(t, v)
 	assert.NotNil(t, err)
 }

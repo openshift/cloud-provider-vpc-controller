@@ -189,11 +189,11 @@ func GetCloudProviderVpc() (*vpcctl.CloudVpc, error) {
 		return nil, err
 	}
 	cloud := ibm.Cloud{KubeClient: client, Config: &ibm.CloudConfig{Prov: ibm.Provider{ClusterID: clusterID}}}
-	err = cloud.InitCloudVpc(shouldPrivateEndpointBeEnabled())
+	vpc, err := cloud.InitCloudVpc(shouldPrivateEndpointBeEnabled())
 	if err != nil {
 		return nil, err
 	}
-	return cloud.Vpc, nil
+	return vpc, nil
 }
 
 // MonitorLoadBalancers method gets called by the cloud provider monitorVpcLoadBalancers method.

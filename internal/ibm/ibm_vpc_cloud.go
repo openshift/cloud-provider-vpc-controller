@@ -24,17 +24,21 @@ import (
 )
 
 // InitCloudVpc - Initialize the VPC cloud logic
-func (c *Cloud) InitCloudVpc(enablePrivateEndpoint bool) error {
-	if c.Vpc == nil {
-		options := &vpcctl.CloudVpcOptions{
-			ClusterID:     c.Config.Prov.ClusterID,
-			EnablePrivate: enablePrivateEndpoint,
-		}
-		cloudVpc, err := vpcctl.NewCloudVpc(c.KubeClient, options)
-		if err != nil {
-			return err
-		}
+func (c *Cloud) InitCloudVpc(enablePrivateEndpoint bool) (*vpcctl.CloudVpc, error) {
+	// Extract the VPC cloud object. If set, return it
+	cloudVpc := c.Vpc
+	if cloudVpc != nil {
+		return cloudVpc, nil
+	}
+	// Initialize options based on values in the cloud provider
+	options := &vpcctl.CloudVpcOptions{
+		ClusterID:     c.Config.Prov.ClusterID,
+		EnablePrivate: enablePrivateEndpoint,
+	}
+	// Allocate a new VPC Cloud object and save it if successful
+	cloudVpc, err := vpcctl.NewCloudVpc(c.KubeClient, options)
+	if cloudVpc != nil {
 		c.Vpc = cloudVpc
 	}
-	return nil
+	return cloudVpc, err
 }
