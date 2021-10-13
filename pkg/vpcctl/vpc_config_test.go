@@ -628,37 +628,13 @@ func TestCloudVpc_IsServicePublic(t *testing.T) {
 	assert.Equal(t, result, false)
 }
 
-func TestCloudVpc_RefreshSecret(t *testing.T) {
-	tests := []struct {
-		name    string
-		cloud   *CloudVpc
-		arg     string
-		wantErr bool
-	}{
-		{
-			name:  "No API Key in the secret",
-			cloud: gen2CloudVpc, arg: "[VPC]",
-			wantErr: true,
-		},
-		{
-			name:  "API Key didn't change in the secret - Gen2",
-			cloud: gen2CloudVpc, arg: gen2Data,
-			wantErr: false,
-		},
-		{
-			name:  "Refresh API key stored in the object",
-			cloud: &CloudVpc{Config: ConfigVpc{ClusterID: "bqcssbbd0bsui62odcdg"}}, arg: gen2Data,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := tt.cloud
-			if err := c.RefreshSecret(tt.arg); (err != nil) != tt.wantErr {
-				t.Errorf("cloudVpcImpl.RefreshSecret() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
+func TestCloudVpc_IsVpcConfigStoredInSecret(t *testing.T) {
+	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: VpcSecretFileName, Namespace: VpcSecretNamespace}}
+	result := mockCloud.IsVpcConfigStoredInSecret(secret)
+	assert.Equal(t, result, true)
+	secret = &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "my-secret", Namespace: "default"}}
+	result = mockCloud.IsVpcConfigStoredInSecret(secret)
+	assert.Equal(t, result, false)
 }
 
 func TestCloudVpc_selectSingleZoneForSubnetAndNodes(t *testing.T) {

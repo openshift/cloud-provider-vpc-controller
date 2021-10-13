@@ -33,8 +33,8 @@ github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym
 github.com/IBM/go-sdk-core/v5 v5.6.5/go.mod h1:tt/B9rxLkRtglE7pvqLuYikgCXaZFL3btdruJaoUeek=
 github.com/IBM/go-sdk-core/v5 v5.7.0 h1:Mue7sTqITpmgIxsmWOfBChoyqSjTD5GFA85RH3TGrv4=
 github.com/IBM/go-sdk-core/v5 v5.7.0/go.mod h1:+YbdhrjCHC84ls4MeBp+Hj4NZCni+tDAc0XQUqRO9Jc=
-github.com/IBM/vpc-go-sdk v0.11.0 h1:OstkhjsBkSTejo/wxWziOkVVRw8Hm1kCFrcvtTM3nAE=
-github.com/IBM/vpc-go-sdk v0.11.0/go.mod h1:B3Pgkwb0tQqTeIojR1MFLp96qW7cKnWyJ74jbAJgdbk=
+github.com/IBM/vpc-go-sdk v0.12.0 h1:tOuEveEJOEjNhLcRxTOG/w5mf0e59fqJVwSysq2oSx8=
+github.com/IBM/vpc-go-sdk v0.12.0/go.mod h1:B3Pgkwb0tQqTeIojR1MFLp96qW7cKnWyJ74jbAJgdbk=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=

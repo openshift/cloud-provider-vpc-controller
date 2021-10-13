@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/IBM/go-sdk-core/v5 v5.7.0
-	github.com/IBM/vpc-go-sdk v0.11.0
+	github.com/IBM/vpc-go-sdk v0.12.0
 	github.com/go-openapi/errors v0.20.0 // indirect
 	github.com/go-openapi/strfmt v0.20.3
 	github.com/imdario/mergo v0.3.12 // indirect

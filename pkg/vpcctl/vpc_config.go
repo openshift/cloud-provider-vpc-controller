@@ -704,6 +704,11 @@ func (c *CloudVpc) isServicePublic(service *v1.Service) bool {
 	return value == "" || value == servicePublicLB
 }
 
+// IsVpcConfigStoredInSecret - does the specified secret contain any VPC related config information
+func (c *CloudVpc) IsVpcConfigStoredInSecret(secret *v1.Secret) bool {
+	return (secret.ObjectMeta.Namespace == VpcSecretNamespace && secret.ObjectMeta.Name == VpcSecretFileName)
+}
+
 // ReadKubeSecret - read the Kube secret and extract the data into a string
 func (c *CloudVpc) ReadKubeSecret() (string, error) {
 	kubeSecret, err := c.KubeClient.CoreV1().Secrets(VpcSecretNamespace).Get(context.TODO(), VpcSecretFileName, metav1.GetOptions{})
@@ -711,31 +716,6 @@ func (c *CloudVpc) ReadKubeSecret() (string, error) {
 		return "", fmt.Errorf("Failed to get secret: %v", err)
 	}
 	return string(kubeSecret.Data[VpcClientDataKey]), nil
-}
-
-// RefreshSecret - Refresh the API key and VPC client objects
-func (c *CloudVpc) RefreshSecret(secretData string) error {
-	// Save off the current secret and tokenExchange URL
-	apiKeySecret := c.Config.APIKeySecret
-	tokenExchange := c.Config.TokenExchangeURL
-
-	// Update the VPC config data with the current contents of the secret
-	err := c.Config.Initialize(c.Config.ClusterID, secretData, c.Config.EnablePrivate)
-	if err != nil {
-		return err
-	}
-
-	// If the secret and tokenExchange URL did not change, return
-	if apiKeySecret == c.Config.APIKeySecret && tokenExchange == c.Config.TokenExchangeURL {
-		return nil
-	}
-
-	// Refresh the SDK object with the updated secret / tokenExchange URL
-	c.Sdk, err = NewCloudVpcSdk(&c.Config)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // selectSingleZoneForSubnetAndNodes - select a single zone and calculate the subnet IDs and nodes in that zone
