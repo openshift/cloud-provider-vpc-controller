@@ -32,3 +32,70 @@ func TestCloud_InitCloudVpc(t *testing.T) {
 	assert.Nil(t, v)
 	assert.NotNil(t, err)
 }
+
+func TestCloud_NewCloudVpcOptions(t *testing.T) {
+	// Test for the case of cloud config not initialized
+	c := Cloud{}
+	options, err := c.NewCloudVpcOptions(true)
+	assert.Nil(t, options)
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), "Cloud config not initialized")
+
+	// Test failure to read credentials from file
+	c.Config = &CloudConfig{Prov: Provider{
+		Region:                   "us-south",
+		ClusterID:                "clusterID",
+		ProviderType:             "g2",
+		G2Credentials:            "../../test-fixtures/missing-file.txt",
+		G2ResourceGroupName:      "default",
+		G2VpcSubnetNames:         "subnet1,subnet2,subnet3",
+		G2WorkerServiceAccountID: "accountID",
+		G2VpcName:                "vpc",
+	}}
+	options, err = c.NewCloudVpcOptions(true)
+	assert.Nil(t, options)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed to read credentials")
+
+	// Successfully return CloudVpcOptions
+	c.Config.Prov.G2Credentials = "../../test-fixtures/creds.txt"
+	options, err = c.NewCloudVpcOptions(true)
+	assert.NotNil(t, options)
+	assert.Nil(t, err)
+	assert.Equal(t, options.APIKey, "apiKey-1234")
+	assert.Equal(t, options.ClusterID, "clusterID")
+	assert.Equal(t, options.EnablePrivate, true)
+	assert.Equal(t, options.ProviderType, "g2")
+	assert.Equal(t, options.Region, "us-south")
+	assert.Equal(t, options.ResourceGroupName, "default")
+	assert.Equal(t, options.SubnetNames, "subnet1,subnet2,subnet3")
+	assert.Equal(t, options.WorkerAccountID, "accountID")
+	assert.Equal(t, options.VpcName, "vpc")
+}
+
+func TestCloud_ReadCloudConfig(t *testing.T) {
+	c := Cloud{}
+	// Test for the case of missing config file
+	config, err := c.ReadCloudConfig("../../test-fixtures/cloud-conf-missing.ini")
+	assert.Nil(t, config)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "missing file")
+
+	// Test for the case of missing config file
+	config, err = c.ReadCloudConfig("../../test-fixtures/cloud-conf-error.ini")
+	assert.Nil(t, config)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "fatal error occurred processing file")
+
+	// Test for the reading in the g2 config file
+	config, err = c.ReadCloudConfig("../../test-fixtures/cloud-conf-g2.ini")
+	assert.NotNil(t, config)
+	assert.Nil(t, err)
+	assert.Equal(t, config.Prov.ClusterID, "clusterID")
+	assert.Equal(t, config.Prov.ProviderType, "g2")
+	assert.Equal(t, config.Prov.Region, "us-south")
+	assert.Equal(t, config.Prov.G2Credentials, "../../test-fixtures/creds.txt")
+	assert.Equal(t, config.Prov.G2ResourceGroupName, "default")
+	assert.Equal(t, config.Prov.G2VpcSubnetNames, "subnet1,subnet2,subnet3")
+	assert.Equal(t, config.Prov.G2VpcName, "vpc")
+}

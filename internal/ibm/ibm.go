@@ -26,14 +26,28 @@ import (
 
 // Provider holds information from the cloud provider node (i.e. instance).
 type Provider struct {
-	// Optional: Cluster ID of the master. Only set in controller manager.
-	ClusterID string
+	// Optional: Region of the node. Only set in worker.
+	Region string `gcfg:"region"`
+	// Optional: Instance Type of the node. Only set in worker.
+	ClusterID string `gcfg:"clusterID"`
+	// Optional: Account ID of the master. Only set in controller manager.
+	ProviderType string `gcfg:"cluster-default-provider"`
+	// Optional: File containing VPC Gen2 credentials
+	G2Credentials string `gcfg:"g2Credentials"`
+	// Optional: File containing VPC Gen2 credentials
+	G2ResourceGroupName string `gcfg:"g2ResourceGroupName"`
+	// Optional: File containing VPC Gen2 credentials
+	G2VpcSubnetNames string `gcfg:"g2VpcSubnetNames"`
+	// Optional: Service account ID used to allocate worker nodes in VPC Gen2 environment
+	G2WorkerServiceAccountID string `gcfg:"g2workerServiceAccountID"`
+	// Optional: VPC Gen2 name
+	G2VpcName string `gcfg:"g2VpcName"`
 }
 
 // CloudConfig is the ibm cloud provider config data.
 type CloudConfig struct {
 	// [provider] section
-	Prov Provider
+	Prov Provider `gcfg:"provider"`
 }
 
 // Cloud is the ibm cloud provider implementation.

@@ -151,9 +151,15 @@ type CloudVpc struct {
 
 // CloudVpcOptions is the main VPC cloud provider implementation.
 type CloudVpcOptions struct {
-	ClusterID       string
-	EnablePrivate   bool
-	WorkerAccountID string
+	APIKey            string
+	ClusterID         string
+	EnablePrivate     bool
+	ProviderType      string
+	Region            string
+	ResourceGroupName string
+	SubnetNames       string
+	WorkerAccountID   string
+	VpcName           string
 }
 
 func NewCloudVpc(kubeClient kubernetes.Interface, options *CloudVpcOptions) (*CloudVpc, error) {
