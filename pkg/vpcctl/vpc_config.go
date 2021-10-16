@@ -22,13 +22,10 @@ package vpcctl
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
 
-	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/klog"
-	"github.com/IBM/go-sdk-core/v5/core"
 	"gopkg.in/gcfg.v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -179,13 +176,6 @@ func NewCloudVpc(kubeClient kubernetes.Interface, options *CloudVpcOptions) (*Cl
 	return c, nil
 }
 
-func (c *CloudVpc) IsServiceFeatureEnabled(service *v1.Service, loadbalancerOption string) bool {
-	if service == nil || loadbalancerOption == "" {
-		return false
-	}
-	return isVpcOptionEnabled(c.getServiceEnabledFeatures(service), loadbalancerOption)
-}
-
 // adjustSecretData - Selectively replace underscores with dashes (only in the keys)
 //
 // This routine is needed because the GO package "gopkg.in/gcfg.v1" does not allow
@@ -210,27 +200,6 @@ func (c *ConfigVpc) adjustSecretData(secretString string) (string, error) {
 		outputLines = append(outputLines, newLine)
 	}
 	return strings.Join(outputLines, "\n"), nil
-}
-
-// GetSummary - returns a string containing the configuration information
-func (c *ConfigVpc) GetSummary() string {
-	return fmt.Sprintf("ClusterID:%s Endpoint:%s Provider:%s ResourceGroup:%s TokenExchangeURL:%s",
-		c.ClusterID,
-		c.EndpointURL,
-		c.ProviderType,
-		c.ResourceGroupID,
-		c.TokenExchangeURL,
-	)
-}
-
-// GetToken - retrieves a token from the specified Authenticator
-func (c *ConfigVpc) GetToken(auth core.Authenticator) (string, error) {
-	req := &http.Request{Header: make(http.Header)}
-	err := auth.Authenticate(req)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimPrefix(req.Header.Get("Authorization"), "Bearer "), nil
 }
 
 // Initialize - extract secret data into the VPC config object
@@ -292,18 +261,6 @@ func (c *ConfigVpc) Initialize(clusterID, secretData string, enablePrivate bool)
 	return nil
 }
 
-// filterLoadBalancersOnlyNLB - find all of the network load balancers in the list
-func (c *CloudVpc) filterLoadBalancersOnlyNLB(lbs []*VpcLoadBalancer) []*VpcLoadBalancer {
-	nlbList := []*VpcLoadBalancer{}
-	for _, lb := range lbs {
-		if lb.IsNLB() {
-			nlbList = append(nlbList, lb)
-		}
-	}
-	// Return list of network load balancers
-	return nlbList
-}
-
 // filterNodesByEdgeLabel - extract only the edge nodes if there any any -or- return all nodes
 func (c *CloudVpc) filterNodesByEdgeLabel(nodes []*v1.Node) []*v1.Node {
 	edgeNodes := c.findNodesMatchingLabelValue(nodes, nodeLabelDedicated, nodeLabelValueEdge)
@@ -311,17 +268,6 @@ func (c *CloudVpc) filterNodesByEdgeLabel(nodes []*v1.Node) []*v1.Node {
 		return nodes
 	}
 	return edgeNodes
-}
-
-// filterNodesByNodeNames - filter list of nodes to only those nodes in the specified map
-func (c *CloudVpc) filterNodesByNodeNames(nodes []*v1.Node, nodeCounts map[string]int) []*v1.Node {
-	foundNodes := []*v1.Node{}
-	for _, node := range nodes {
-		if nodeCounts[node.ObjectMeta.Name] > 0 {
-			foundNodes = append(foundNodes, node)
-		}
-	}
-	return foundNodes
 }
 
 // filterNodesByServiceMemberQuota - limit the nodes we select based on the current quota from service annotation
@@ -384,51 +330,6 @@ func (c *CloudVpc) filterNodesByServiceZone(nodes []*v1.Node, service *v1.Servic
 	return nodes
 }
 
-// filterNodesByZone - return list of nodes in the request zone
-func (c *CloudVpc) filterNodesByZone(nodes []*v1.Node, zone string) []*v1.Node {
-	return c.findNodesMatchingLabelValue(nodes, nodeLabelZone, zone)
-}
-
-// filterSubnetsBySubnetIDs - find all of the subnets in the list with matching subnet IDs
-func (c *CloudVpc) filterSubnetsBySubnetIDs(subnets []*VpcSubnet, subnetIDs []string) []*VpcSubnet {
-	matchingSubnets := []*VpcSubnet{}
-	desiredSubnetIDs := " " + strings.Join(subnetIDs, " ") + " "
-	for _, subnet := range subnets {
-		if strings.Contains(desiredSubnetIDs, " "+subnet.ID+" ") {
-			matchingSubnets = append(matchingSubnets, subnet)
-		}
-	}
-	// Return subnets with the requested IDs
-	return matchingSubnets
-}
-
-// filterSubnetsByZone - find all of the subnets in the requested zone
-func (c *CloudVpc) filterSubnetsByZone(subnets []*VpcSubnet, zone string) []*VpcSubnet {
-	matchingSubnets := []*VpcSubnet{}
-	for _, subnet := range subnets {
-		if subnet.Zone == zone {
-			matchingSubnets = append(matchingSubnets, subnet)
-		}
-	}
-	// Return subnets in the specified zone
-	return matchingSubnets
-}
-
-// filterZonesByNodeCountsInEachZone - filter the subnet zones if there are no nodes in that zone
-func (c *CloudVpc) filterZonesByNodeCountsInEachZone(subnetZones []string, nodeCounts map[string]int) []string {
-	returnedZones := []string{}
-	for _, subnetZone := range subnetZones {
-		for nodeZone := range nodeCounts {
-			// If we have nodes in the subnet zone, keep this zone in the return list
-			if nodeZone == subnetZone {
-				returnedZones = append(returnedZones, subnetZone)
-				break
-			}
-		}
-	}
-	return returnedZones
-}
-
 // findNodesMatchingLabelValue - find all of the nodes that match the requested label and value
 func (c *CloudVpc) findNodesMatchingLabelValue(nodes []*v1.Node, filterLabel, filterValue string) []*v1.Node {
 	matchingNodes := []*v1.Node{}
@@ -439,23 +340,6 @@ func (c *CloudVpc) findNodesMatchingLabelValue(nodes []*v1.Node, filterLabel, fi
 	}
 	// Return matching nodes
 	return matchingNodes
-}
-
-// findServiceByLbName - Find the service that matches the specified LB name
-func (c *CloudVpc) findServiceByLbName(lbName string) (*v1.Service, error) {
-	serviceList, err := c.KubeClient.CoreV1().Services(v1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get list of Kubernetes services: %v", err)
-	}
-	for _, item := range serviceList.Items {
-		service := item
-		if service.Spec.Type == v1.ServiceTypeLoadBalancer || service.Spec.Type == v1.ServiceTypeNodePort {
-			if lbName == c.GenerateLoadBalancerName(&service) {
-				return &service, nil
-			}
-		}
-	}
-	return nil, nil
 }
 
 // GenerateLoadBalancerName - generate the VPC load balancer name from the cluster ID and Kube service
@@ -481,46 +365,6 @@ func (c *CloudVpc) GetClusterVpcSubnetIDs() (string, []string, error) {
 		return "", nil, fmt.Errorf("The %v/%v config map does not contain key: [%s]", VpcCloudProviderNamespace, VpcCloudProviderConfigMap, VpcCloudProviderSubnetsKey)
 	}
 	return vpcID, strings.Split(subnets, ","), nil
-}
-
-// GetClusterVpcID - determine the VPC the current cluster is allocated in
-func (c *CloudVpc) GetClusterVpcID() (string, error) {
-	vpcID, clusterSubnets, err := c.GetClusterVpcSubnetIDs()
-	if err != nil {
-		return "", err
-	}
-	if vpcID != "" {
-		return vpcID, nil
-	}
-	vpcSubnet, err := c.Sdk.GetSubnet(clusterSubnets[0])
-	if err != nil {
-		return "", err
-	}
-	return vpcSubnet.Vpc.ID, nil
-}
-
-// getLoadBalancerCountInEachZone - retrieve the count of how many nodes are in each of zones
-func (c *CloudVpc) getLoadBalancerCountInEachZone(lbs []*VpcLoadBalancer, vpcSubnets []*VpcSubnet) map[string]int {
-	zonesFound := map[string]int{}
-	for _, lb := range lbs {
-		zones := lb.getZones(vpcSubnets)
-		for _, zone := range zones {
-			zonesFound[zone]++
-		}
-	}
-	return zonesFound
-}
-
-// getNodeCountInEachZone - retrieve the count of how many nodes are in each of zones
-func (c *CloudVpc) getNodeCountInEachZone(nodes []*v1.Node) map[string]int {
-	zonesFound := map[string]int{}
-	for _, node := range nodes {
-		zone := node.Labels[nodeLabelZone]
-		if zone != "" {
-			zonesFound[zone]++
-		}
-	}
-	return zonesFound
 }
 
 // getNodeIDs - get the node identifier for each node in the list
@@ -561,38 +405,6 @@ func (c *CloudVpc) getPoolMemberTargets(members []*VpcLoadBalancerPoolMember) []
 // getServiceEnabledFeatures - retrieve the vpc-subnets annotation
 func (c *CloudVpc) getServiceEnabledFeatures(service *v1.Service) string {
 	return strings.ToLower(strings.ReplaceAll(service.ObjectMeta.Annotations[serviceAnnotationEnableFeatures], " ", ""))
-}
-
-// getServiceEndpointNodeCounts - retrieve map of the node IP addresses and count of how many application pods are on each node
-func (c *CloudVpc) getServiceEndpointNodeCounts(service *v1.Service) (map[string]int, error) {
-	nodesFound := map[string]int{}
-	endpoints, err := c.KubeClient.CoreV1().Endpoints(service.ObjectMeta.Namespace).Get(context.TODO(), service.ObjectMeta.Name, metav1.GetOptions{})
-	if err != nil {
-		return nodesFound, fmt.Errorf("Failed to get %v/%v endpoints: %v", service.ObjectMeta.Namespace, service.ObjectMeta.Name, err)
-	}
-	for _, subset := range endpoints.Subsets {
-		for _, addr := range subset.Addresses {
-			if addr.NodeName != nil {
-				nodeName := *addr.NodeName
-				if nodeName != "" {
-					nodesFound[nodeName]++
-				}
-			}
-		}
-	}
-	return nodesFound, nil
-}
-
-// getServiceEndpointZoneCounts - retrieve list of zones that the service endpoint pods reside in
-func (c *CloudVpc) getServiceEndpointZoneCounts(service *v1.Service, nodes []*v1.Node) (map[string]int, error) {
-	appZoneCount := map[string]int{}
-	appNodeCount, err := c.getServiceEndpointNodeCounts(service)
-	if err != nil {
-		return appZoneCount, err
-	}
-	appNodes := c.filterNodesByNodeNames(nodes, appNodeCount)
-	appZoneCount = c.getNodeCountInEachZone(appNodes)
-	return appZoneCount, nil
 }
 
 // getServiceHealthCheckNodePort - retrieve the health check node port for the service
@@ -675,23 +487,6 @@ func (c *CloudVpc) getSubnetIDs(subnets []*VpcSubnet) []string {
 	return subnetIDs
 }
 
-// getZonesContainingSubnets - retrieve the zones that contain the specified subnets
-func (c *CloudVpc) getZonesContainingSubnets(subnets []*VpcSubnet) []string {
-	zonesFound := map[string]bool{}
-	for _, subnet := range subnets {
-		zone := subnet.Zone
-		if zone != "" {
-			zonesFound[zone] = true
-		}
-	}
-	zoneList := []string{}
-	for zone := range zonesFound {
-		zoneList = append(zoneList, zone)
-	}
-	sort.Strings(zoneList)
-	return zoneList
-}
-
 // isServicePortEqualListener - does the specified service port equal the values specified
 func (c *CloudVpc) isServicePortEqualListener(kubePort v1.ServicePort, listener *VpcLoadBalancerListener) bool {
 	return int(listener.Port) == int(kubePort.Port) &&
@@ -722,100 +517,6 @@ func (c *CloudVpc) ReadKubeSecret() (string, error) {
 		return "", fmt.Errorf("Failed to get secret: %v", err)
 	}
 	return string(kubeSecret.Data[VpcClientDataKey]), nil
-}
-
-// selectSingleZoneForSubnetAndNodes - select a single zone and calculate the subnet IDs and nodes in that zone
-func (c *CloudVpc) selectSingleZoneForSubnetAndNodes(service *v1.Service, vpcSubnets []*VpcSubnet, subnetZones []string, nodes []*v1.Node) ([]string, []*v1.Node, error) {
-	originalSubnetZoneCount := len(subnetZones)
-	nodeCountsByZone := map[string]int{}
-
-	// If there are multiple subnet zones choices, we don't want to choose a zone that does not have any worker nodes
-	if len(subnetZones) > 1 {
-		// Determine how many nodes are in each zone
-		nodeCountsByZone = c.getNodeCountInEachZone(nodes)
-
-		klog.Infof("Node zones: %+v", nodeCountsByZone)
-		workerZones := c.filterZonesByNodeCountsInEachZone(subnetZones, nodeCountsByZone)
-
-		// If there no worker nodes in any of the subnet zones, then just pick the first subnet zone
-		if len(workerZones) == 0 {
-			subnetZones = []string{subnetZones[0]}
-		} else {
-			// Only consider those zones that contain worker nodes
-			subnetZones = workerZones
-		}
-	}
-
-	// If externalTrafficPolicy: Local is set on the service, select a zone that has backend pods
-	if len(subnetZones) > 1 && service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal {
-		appCountsByZone, err := c.getServiceEndpointZoneCounts(service, nodes)
-		if err != nil {
-			return nil, nil, err
-		}
-		// If there are any application pods, adjust the subnet zones to only includes zones with application pods
-		if len(appCountsByZone) > 0 {
-			klog.Infof("Endpoint zones: %+v", appCountsByZone)
-			appSubnetZones := c.filterZonesByNodeCountsInEachZone(subnetZones, appCountsByZone)
-
-			// Only update the subnet zones if there are application pods in those zones
-			if len(appSubnetZones) > 0 {
-				subnetZones = appSubnetZones
-			}
-		}
-	}
-
-	// If we still have multiple subnet zones, let's take into consideration the NLBs that already exist on this cluster
-	if len(subnetZones) > 1 {
-		lbs, err := c.getLoadBalancersInCluster()
-		if err != nil {
-			return nil, nil, err
-		}
-		// Filter the LBs to only include NLBs
-		lbs = c.filterLoadBalancersOnlyNLB(lbs)
-		// Determine the zones for the existing NLBs
-		nlbCountsByZone := c.getLoadBalancerCountInEachZone(lbs, vpcSubnets)
-		klog.Infof("Existing NLB zones: %+v", nlbCountsByZone)
-		// Select the "best" zone based on the existing NLBs & worker nodes in the cluster
-		subnetZones = c.selectSubnetZoneForNLB(subnetZones, nlbCountsByZone, nodeCountsByZone)
-	}
-
-	// If we originally had more than one subnet zone, adjust the subnet IDs to only reference one zone
-	if originalSubnetZoneCount > 1 {
-		klog.Infof("Selected zone for NLB: %+v", subnetZones[0])
-		vpcSubnets = c.filterSubnetsByZone(vpcSubnets, subnetZones[0])
-	}
-
-	// Retrieve list of subnets IDs for the subnets in the desired zone
-	subnetList := c.getSubnetIDs(vpcSubnets)
-	if originalSubnetZoneCount > 1 {
-		klog.Infof("Selected subnets: %+v", subnetList)
-	}
-
-	// Filter the node list to only the single zone that was selected
-	nodes = c.filterNodesByZone(nodes, subnetZones[0])
-
-	return subnetList, nodes, nil
-}
-
-// selectSubnetZoneForNLB - algorithm to determine the "best" zone to place the NLB in
-func (c *CloudVpc) selectSubnetZoneForNLB(subnetZones []string, lbZones, nodeZones map[string]int) []string {
-	zoneSelected := ""
-	var lbCount int
-	var nodeCount int
-	for _, zone := range subnetZones {
-		// Select a new zone if:
-		// - first time through loop
-		// - zone has fewer NLBs then the selected zone
-		// - zone has same number of NLBs, but more worker nodes then the selected zone
-		if zoneSelected == "" ||
-			lbZones[zone] < lbCount ||
-			(lbZones[zone] == lbCount && nodeZones[zone] > nodeCount) {
-			zoneSelected = zone
-			lbCount = lbZones[zone]
-			nodeCount = nodeZones[zone]
-		}
-	}
-	return []string{zoneSelected}
 }
 
 // Validate the cluster subnets from the config map
@@ -956,22 +657,4 @@ func (c *CloudVpc) validateServiceZone(service *v1.Service, serviceZone string, 
 			serviceAnnotationZone, service.ObjectMeta.Namespace, service.ObjectMeta.Name, serviceZone)
 	}
 	return clusterSubnets, nil
-}
-
-// Validate that the subnets service annotation was not updated
-func (c *CloudVpc) validateServiceZoneNotUpdated(service *v1.Service, lb *VpcLoadBalancer, lbZones []string) error {
-	// Verify that there is at least one zone for load balancer (this error check should never trigger)
-	if len(lbZones) == 0 {
-		return fmt.Errorf("The load balancer %s was created with no subnets", lb.Name)
-	}
-	// Verify that there is only 1 zone if this is a network load balancer (this error check should never trigger)
-	if lb.IsNLB() && len(lbZones) > 1 {
-		return fmt.Errorf("The network load balancer was created in zones %v. This is not supported", lbZones)
-	}
-	// Verify that the service zone and LB zone are the same
-	serviceZone := c.getServiceZone(service)
-	if serviceZone != "" && (serviceZone != lbZones[0] || len(lbZones) > 1) {
-		return fmt.Errorf("The load balancer was created in zone %v. This setting can not be changed", lbZones[0])
-	}
-	return nil
 }

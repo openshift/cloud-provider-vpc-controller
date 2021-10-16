@@ -135,29 +135,6 @@ func TestNewCloudVpc(t *testing.T) {
 	}
 }
 
-func TestConfigVpc_GetSummary(t *testing.T) {
-	config := ConfigVpc{
-		ClusterID:        "clusterID",
-		EndpointURL:      "https://us-south.iaas.cloud.ibm.com:443/v1",
-		ProviderType:     "g2",
-		ResourceGroupID:  "resourceGroupID",
-		TokenExchangeURL: "https://iam.bluemix.net",
-	}
-	result := config.GetSummary()
-	assert.Equal(t, result, "ClusterID:clusterID Endpoint:https://us-south.iaas.cloud.ibm.com:443/v1 Provider:g2 ResourceGroup:resourceGroupID TokenExchangeURL:https://iam.bluemix.net")
-}
-
-func TestCloudVpc_filterLoadBalancersOnlyNLB(t *testing.T) {
-	lb1 := &VpcLoadBalancer{ID: "lb1", Name: "kube-clusterID-1234", ProfileFamily: "network"}
-	lb2 := &VpcLoadBalancer{ID: "lb2", Name: "kube-clusterID-1234"}
-
-	// Find the one NLB node in the list
-	inLBs := []*VpcLoadBalancer{lb1, lb2}
-	outLBs := mockCloud.filterLoadBalancersOnlyNLB(inLBs)
-	assert.Equal(t, len(outLBs), 1)
-	assert.Equal(t, outLBs[0].ID, "lb1")
-}
-
 func TestCloudVpc_FilterNodesByEdgeLabel(t *testing.T) {
 	// Pull out the 1 edge node from the list of 2 nodes
 	inNodes := []*v1.Node{mockNode1, mockNode2}
@@ -170,21 +147,6 @@ func TestCloudVpc_FilterNodesByEdgeLabel(t *testing.T) {
 	outNodes = mockCloud.filterNodesByEdgeLabel(inNodes)
 	assert.Equal(t, len(outNodes), 1)
 	assert.Equal(t, outNodes[0].Name, mockNode2.Name)
-}
-
-func TestCloudVpc_filterNodesByNodeNames(t *testing.T) {
-	// Pull out the 1 node that is in the map
-	nodeNames := map[string]int{"192.168.1.1": 1, "192.168.2.2": 0}
-	inNodes := []*v1.Node{mockNode1, mockNode2}
-	outNodes := mockCloud.filterNodesByNodeNames(inNodes, nodeNames)
-	assert.Equal(t, len(outNodes), 1)
-	assert.Equal(t, outNodes[0].Name, mockNode1.Name)
-
-	// No nodes are listed in the map
-	nodeNames = map[string]int{"192.168.1.1": 0, "192.168.2.2": 0, "192.168.3.3": 0}
-	inNodes = []*v1.Node{mockNode1, mockNode2}
-	outNodes = mockCloud.filterNodesByNodeNames(inNodes, nodeNames)
-	assert.Equal(t, len(outNodes), 0)
 }
 
 func TestCloudVpc_FilterNodesByServiceMemberQuota(t *testing.T) {
@@ -257,59 +219,6 @@ func TestCloudVpc_FilterNodesByServiceZone(t *testing.T) {
 	assert.Equal(t, outNodes[0].Name, mockNode1.Name)
 }
 
-func TestCloudVpc_filterNodesByZone(t *testing.T) {
-	// No nodes matching the request zone
-	inNodes := []*v1.Node{mockNode1, mockNode2}
-	outNodes := mockCloud.filterNodesByZone(inNodes, "zoneX")
-	assert.Equal(t, len(outNodes), 0)
-
-	// Find nodes matching one of the zones
-	outNodes = mockCloud.filterNodesByZone(inNodes, "zoneA")
-	assert.Equal(t, len(outNodes), 1)
-	assert.Equal(t, outNodes[0].Name, mockNode1.Name)
-}
-
-func TestCloudVpc_filterSubnetsBySubnetIDs(t *testing.T) {
-	// No subnets matching the requested subnet ID
-	inSubnets := []*VpcSubnet{{ID: "subnet1"}, {ID: "subnet2"}, {ID: "subnet3"}}
-	outSubnets := mockCloud.filterSubnetsBySubnetIDs(inSubnets, []string{"subnet"})
-	assert.Equal(t, len(outSubnets), 0)
-
-	// Find the two subnets that match
-	outSubnets = mockCloud.filterSubnetsBySubnetIDs(inSubnets, []string{"subnet1", "subnet3"})
-	assert.Equal(t, len(outSubnets), 2)
-	assert.Equal(t, outSubnets[0].ID, "subnet1")
-	assert.Equal(t, outSubnets[1].ID, "subnet3")
-}
-
-func TestCloudVpc_filterSubnetsByZone(t *testing.T) {
-	// No subnets matching the requested zone
-	inSubnets := []*VpcSubnet{{ID: "subnet1", Zone: "zoneA"}, {ID: "subnet2", Zone: "zoneB"}, {ID: "subnet3", Zone: "zoneA"}}
-	outSubnets := mockCloud.filterSubnetsByZone(inSubnets, "zone")
-	assert.Equal(t, len(outSubnets), 0)
-
-	// Find the two subnets that match
-	outSubnets = mockCloud.filterSubnetsByZone(inSubnets, "zoneA")
-	assert.Equal(t, len(outSubnets), 2)
-	assert.Equal(t, outSubnets[0].ID, "subnet1")
-	assert.Equal(t, outSubnets[1].ID, "subnet3")
-}
-
-func TestCloudVpc_filterZonesByNodeCountsInEachZone(t *testing.T) {
-	// None of the input subnets have nodes
-	nodeCounts := map[string]int{"zoneA": 1, "zoneB": 3, "zoneC": 2}
-	inZones := []string{"zoneX", "zoneY", "zoneZ"}
-	outZones := mockCloud.filterZonesByNodeCountsInEachZone(inZones, nodeCounts)
-	assert.Equal(t, len(outZones), 0)
-
-	// Two of subnets have worker nodes
-	inZones = []string{"zoneA", "zoneB", "zoneX", "zoneY", "zoneZ"}
-	outZones = mockCloud.filterZonesByNodeCountsInEachZone(inZones, nodeCounts)
-	assert.Equal(t, len(outZones), 2)
-	assert.Equal(t, outZones[0], "zoneA")
-	assert.Equal(t, outZones[1], "zoneB")
-}
-
 func TestCloudVpc_FindNodesMatchingLabelValue(t *testing.T) {
 	// Pull out the 1 edge node from the list of 2 nodes
 	inNodes := []*v1.Node{mockNode1, mockNode2}
@@ -321,24 +230,6 @@ func TestCloudVpc_FindNodesMatchingLabelValue(t *testing.T) {
 	inNodes = []*v1.Node{mockNode2}
 	outNodes = mockCloud.findNodesMatchingLabelValue(inNodes, nodeLabelDedicated, nodeLabelValueEdge)
 	assert.Equal(t, len(outNodes), 0)
-}
-
-func TestCloudVpc_findServiceByLbName(t *testing.T) {
-	// Find service, service not found
-	c := CloudVpc{KubeClient: fake.NewSimpleClientset(), Config: ConfigVpc{ClusterID: "clusterID"}}
-	service, err := c.findServiceByLbName("service not found")
-	assert.Nil(t, service)
-	assert.Nil(t, err)
-
-	// Find service, service found
-	mockService := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "1234", Annotations: map[string]string{}},
-		Spec:       v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer},
-	}
-	c.KubeClient = fake.NewSimpleClientset(mockService)
-	service, err = c.findServiceByLbName("kube-clusterID-1234")
-	assert.NotNil(t, service)
-	assert.Nil(t, err)
 }
 
 func TestCloudVpc_GenerateLoadBalancerName(t *testing.T) {
@@ -379,72 +270,6 @@ func TestCloudVpc_GetClusterSubnets(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestCloudVpc_GetClusterVpcID(t *testing.T) {
-	// Failed to find VPC that matches the VPC ID passed in
-	sdk, _ := NewVpcSdkFake()
-	c := CloudVpc{
-		Sdk:        sdk,
-		KubeClient: fake.NewSimpleClientset(),
-	}
-	vpcID, err := c.GetClusterVpcID()
-	assert.Equal(t, vpcID, "")
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf("Failed to get %s/%s config map", VpcCloudProviderNamespace, VpcCloudProviderConfigMap))
-	configMap := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: VpcCloudProviderConfigMap, Namespace: VpcCloudProviderNamespace},
-		Data:       map[string]string{VpcCloudProviderSubnetsKey: "subnetID"},
-	}
-	c.KubeClient = fake.NewSimpleClientset(configMap)
-
-	// Failed to get list of VPCs
-	c.SetFakeSdkError("GetSubnet")
-	vpcID, err = c.GetClusterVpcID()
-	assert.Equal(t, vpcID, "")
-	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "GetSubnet failed")
-	c.ClearFakeSdkError("GetSubnet")
-
-	// Success - found the VPC ID by comparing cluster subnets and actual subnets
-	vpcID, err = c.GetClusterVpcID()
-	assert.Equal(t, vpcID, "vpcID")
-	assert.Nil(t, err)
-
-	// Success - VPC ID is stored in the config map
-	configMap = &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: VpcCloudProviderConfigMap, Namespace: VpcCloudProviderNamespace},
-		Data:       map[string]string{VpcCloudProviderSubnetsKey: "subnetID", VpcCloudProviderVpcIDKey: "vpcFromConfigMap"},
-	}
-	c.KubeClient = fake.NewSimpleClientset(configMap)
-	vpcID, err = c.GetClusterVpcID()
-	assert.Equal(t, vpcID, "vpcFromConfigMap")
-	assert.Nil(t, err)
-}
-
-func TestCloudVpc_getNodeCountInEachZone(t *testing.T) {
-	nodes := []*v1.Node{mockNode1, mockNode2, mockNode1}
-	result := mockCloud.getNodeCountInEachZone(nodes)
-	assert.Equal(t, len(result), 2)
-	assert.Equal(t, result["zoneA"], 2)
-	assert.Equal(t, result["zoneB"], 1)
-}
-
-func TestCloudVpc_getLoadBalancerCountInEachZone(t *testing.T) {
-	lbA := &VpcLoadBalancer{Subnets: []VpcObjectReference{{ID: "subnetA"}}}
-	lbB := &VpcLoadBalancer{Subnets: []VpcObjectReference{{ID: "subnetA"}, {ID: "subnetB"}}}
-	lbC := &VpcLoadBalancer{Subnets: []VpcObjectReference{{ID: "subnetA"}, {ID: "subnetB"}, {ID: "subnetC"}}}
-	vpcSubnets := []*VpcSubnet{
-		{ID: "subnetA", Zone: "zoneA"},
-		{ID: "subnetB", Zone: "zoneB"},
-		{ID: "subnetC", Zone: "zoneC"},
-	}
-	lbs := []*VpcLoadBalancer{lbA, lbB, lbC}
-	result := mockCloud.getLoadBalancerCountInEachZone(lbs, vpcSubnets)
-	assert.Equal(t, len(result), 3)
-	assert.Equal(t, result["zoneA"], 3)
-	assert.Equal(t, result["zoneB"], 2)
-	assert.Equal(t, result["zoneC"], 1)
-}
-
 func TestCloudVpc_GetNodeIDs(t *testing.T) {
 	nodes := []*v1.Node{mockNode1, mockNode2, mockNode3}
 	c := CloudVpc{}
@@ -474,65 +299,6 @@ func TestCloudVpc_GetPoolMemberTargets(t *testing.T) {
 	result := mockCloud.getPoolMemberTargets(members)
 	assert.Equal(t, len(result), 1)
 	assert.Equal(t, result[0], "192.168.1.1")
-}
-
-func TestCloudVpc_getServiceEndpointNodeCounts(t *testing.T) {
-	// No endpoint found for the service
-	mockService := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "1234"}}
-	nodesFound, err := mockCloud.getServiceEndpointNodeCounts(mockService)
-	assert.Empty(t, nodesFound)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Failed to get default/echo-server endpoints")
-
-	// Endpoint defined for the service, no backend pods
-	endpoints := &v1.Endpoints{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default"}}
-	mockCloud.KubeClient = fake.NewSimpleClientset(endpoints)
-	nodesFound, err = mockCloud.getServiceEndpointNodeCounts(mockService)
-	assert.Empty(t, nodesFound)
-	assert.Nil(t, err)
-
-	// Endpoint defined for the service, multiple backend pods on multiple nodes
-	node1 := mockNode1.Name
-	node2 := mockNode2.Name
-	endpoints = &v1.Endpoints{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default"},
-		Subsets: []v1.EndpointSubset{{Addresses: []v1.EndpointAddress{{NodeName: &node1}, {NodeName: &node2}, {NodeName: &node1}}}}}
-	mockCloud.KubeClient = fake.NewSimpleClientset(endpoints)
-	nodesFound, err = mockCloud.getServiceEndpointNodeCounts(mockService)
-	assert.Nil(t, err)
-	assert.Equal(t, len(nodesFound), 2)
-	assert.Equal(t, nodesFound[node1], 2)
-	assert.Equal(t, nodesFound[node2], 1)
-	mockCloud.KubeClient = fake.NewSimpleClientset()
-}
-
-func TestCloudVpc_getServiceEndpointZoneCounts(t *testing.T) {
-	// No endpoint found for the service
-	mockService := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "1234"}}
-	mockNodes := []*v1.Node{mockNode1, mockNode2}
-	zonesFound, err := mockCloud.getServiceEndpointZoneCounts(mockService, mockNodes)
-	assert.Empty(t, zonesFound)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Failed to get default/echo-server endpoints")
-
-	// Endpoint defined for the service, no backend pods
-	endpoints := &v1.Endpoints{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default"}}
-	mockCloud.KubeClient = fake.NewSimpleClientset(endpoints)
-	zonesFound, err = mockCloud.getServiceEndpointZoneCounts(mockService, mockNodes)
-	assert.Empty(t, zonesFound)
-	assert.Nil(t, err)
-
-	// Endpoint defined for the service, multiple backend pods on multiple nodes
-	node1 := mockNode1.Name
-	node2 := mockNode2.Name
-	endpoints = &v1.Endpoints{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default"},
-		Subsets: []v1.EndpointSubset{{Addresses: []v1.EndpointAddress{{NodeName: &node1}, {NodeName: &node2}}}}}
-	mockCloud.KubeClient = fake.NewSimpleClientset(endpoints)
-	zonesFound, err = mockCloud.getServiceEndpointZoneCounts(mockService, mockNodes)
-	assert.Nil(t, err)
-	assert.Equal(t, len(zonesFound), 2)
-	assert.Equal(t, zonesFound["zoneA"], 1)
-	assert.Equal(t, zonesFound["zoneB"], 1)
-	mockCloud.KubeClient = fake.NewSimpleClientset()
 }
 
 func TestCloudVpc_GetServiceNodeSelectorFilter(t *testing.T) {
@@ -610,14 +376,6 @@ func TestCloudVpc_getSubnetIDs(t *testing.T) {
 	assert.Equal(t, result[1], "subnet2")
 }
 
-func TestCloudVpc_getZonesContainingSubnets(t *testing.T) {
-	subnets := []*VpcSubnet{{ID: "subnet1", Zone: "zoneA"}, {ID: "subnet2", Zone: "zoneB"}, {ID: "subnet3", Zone: "zoneA"}}
-	result := mockCloud.getZonesContainingSubnets(subnets)
-	assert.Equal(t, len(result), 2)
-	assert.Equal(t, result[0], "zoneA")
-	assert.Equal(t, result[1], "zoneB")
-}
-
 func TestCloudVpc_IsServicePublic(t *testing.T) {
 	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default"}}
 	result := mockCloud.isServicePublic(service)
@@ -635,91 +393,6 @@ func TestCloudVpc_IsVpcConfigStoredInSecret(t *testing.T) {
 	secret = &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "my-secret", Namespace: "default"}}
 	result = mockCloud.IsVpcConfigStoredInSecret(secret)
 	assert.Equal(t, result, false)
-}
-
-func TestCloudVpc_selectSingleZoneForSubnetAndNodes(t *testing.T) {
-	// selectSingleZoneForSubnetAndNodes, 2 zones passed in, only nodes in one of the zones
-	nodes := []*v1.Node{mockNode1, mockNode2} // Nodes are in zoneA & zoneB
-	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default"}}
-	subnetZones := []string{"zoneA", "zoneC"}
-	vpcSubnets := []*VpcSubnet{{ID: "subnetA", Zone: "zoneA"}, {ID: "subnetC", Zone: "zoneC"}}
-	retSubnets, retNodes, err := mockCloud.selectSingleZoneForSubnetAndNodes(service, vpcSubnets, subnetZones, nodes)
-	assert.Nil(t, err)
-	assert.Equal(t, len(retSubnets), 1)
-	assert.Equal(t, retSubnets[0], "subnetA")
-	assert.Equal(t, len(retNodes), 1)
-	assert.Equal(t, retNodes[0].Name, "192.168.1.1")
-
-	// selectSingleZoneForSubnetAndNodes, 2 zones passed in, no nodes in any of the zones
-	nodes = []*v1.Node{mockNode1} // Node1 is in zoneA
-	subnetZones = []string{"zoneC", "zoneD"}
-	retSubnets, retNodes, err = mockCloud.selectSingleZoneForSubnetAndNodes(service, vpcSubnets, subnetZones, nodes)
-	assert.Nil(t, err)
-	assert.Equal(t, len(retSubnets), 1)
-	assert.Equal(t, retSubnets[0], "subnetC")
-	assert.Equal(t, len(retNodes), 0)
-
-	// selectSingleZoneForSubnetAndNodes, failed to get endpoints for the service, ExternalTrafficPolicy: Local
-	nodes = []*v1.Node{mockNode1, mockNode2} // Nodes are in zoneA & zoneB
-	subnetZones = []string{"zoneA", "zoneB"}
-	vpcSubnets = []*VpcSubnet{{ID: "subnetA", Zone: "zoneA"}, {ID: "subnetB", Zone: "zoneB"}}
-	service.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeLocal
-	retSubnets, retNodes, err = mockCloud.selectSingleZoneForSubnetAndNodes(service, vpcSubnets, subnetZones, nodes)
-	assert.Nil(t, retSubnets)
-	assert.Nil(t, retNodes)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Failed to get default/echo-server endpoints")
-
-	// selectSingleZoneForSubnetAndNodes, failed to get endpoints for the service, ExternalTrafficPolicy: Local
-	node1 := mockNode1.Name
-	endpoints := &v1.Endpoints{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default"},
-		Subsets: []v1.EndpointSubset{{Addresses: []v1.EndpointAddress{{NodeName: &node1}}}}}
-	mockCloud.KubeClient = fake.NewSimpleClientset(endpoints)
-	retSubnets, retNodes, err = mockCloud.selectSingleZoneForSubnetAndNodes(service, vpcSubnets, subnetZones, nodes)
-	assert.Nil(t, err)
-	assert.Equal(t, len(retSubnets), 1)
-	assert.Equal(t, retSubnets[0], "subnetA")
-	assert.Equal(t, len(retNodes), 1)
-	assert.Equal(t, retNodes[0].Name, "192.168.1.1")
-	service.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeCluster
-
-	// selectSingleZoneForSubnetAndNodes, failed to get list of load balancers
-	sdk, _ := NewVpcSdkFake()
-	c := &CloudVpc{
-		Config:     ConfigVpc{ClusterID: "clusterID"},
-		Sdk:        sdk,
-		KubeClient: fake.NewSimpleClientset(),
-	}
-	nodes = []*v1.Node{mockNode1, mockNode2} // Nodes are in zoneA & zoneB
-	subnetZones = []string{"zoneA", "zoneB"}
-	vpcSubnets = []*VpcSubnet{{ID: "subnetA", Zone: "zoneA"}, {ID: "subnetB", Zone: "zoneB"}}
-	c.SetFakeSdkError("ListLoadBalancers")
-	retSubnets, retNodes, err = c.selectSingleZoneForSubnetAndNodes(service, vpcSubnets, subnetZones, nodes)
-	assert.Nil(t, retSubnets)
-	assert.Nil(t, retNodes)
-	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "ListLoadBalancers failed")
-	c.ClearFakeSdkError("ListLoadBalancers")
-
-	// selectSingleZoneForSubnetAndNodes, retrieved list of load balancers
-	retSubnets, retNodes, err = c.selectSingleZoneForSubnetAndNodes(service, vpcSubnets, subnetZones, nodes)
-	assert.Nil(t, err)
-	assert.Equal(t, len(retSubnets), 1)
-	assert.Equal(t, len(retNodes), 1)
-}
-
-func TestCloudVpc_selectSubnetZoneForNLB(t *testing.T) {
-	lbZones := map[string]int{"zoneA": 1}
-	nodeZones := map[string]int{"zoneA": 1, "zoneB": 2, "zoneC": 3}
-	// "zoneB" - selected because fewer NLBs in zoneB
-	result := mockCloud.selectSubnetZoneForNLB([]string{"zoneA", "zoneB"}, lbZones, nodeZones)
-	assert.Equal(t, len(result), 1)
-	assert.Equal(t, result[0], "zoneB")
-
-	// "zoneC" - selected because: no NLBs and the most nodes
-	result = mockCloud.selectSubnetZoneForNLB([]string{"zoneA", "zoneB", "zoneC"}, lbZones, nodeZones)
-	assert.Equal(t, len(result), 1)
-	assert.Equal(t, result[0], "zoneC")
 }
 
 func TestCloudVpc_ValidateClusterSubnetIDs(t *testing.T) {
@@ -863,31 +536,4 @@ func TestCloudVpc_ValidateServiceZone(t *testing.T) {
 	assert.Nil(t, subnetIDs)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "no cluster subnets in that zone")
-}
-
-func TestCloudVpc_validateServiceZoneNotUpdated(t *testing.T) {
-	service := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "echo-server", Namespace: "default",
-			Annotations: map[string]string{serviceAnnotationZone: "zoneA"}}}
-	lb := &VpcLoadBalancer{ProfileFamily: "network"}
-
-	// validateServiceZoneNotUpdated, no subnets on NLB
-	err := mockCloud.validateServiceZoneNotUpdated(service, lb, []string{})
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "created with no subnets")
-
-	// validateServiceZoneNotUpdated, 2 subnets on NLB
-	err = mockCloud.validateServiceZoneNotUpdated(service, lb, []string{"zoneA", "zoneB"})
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "created in zones [zoneA zoneB]")
-
-	// validateServiceZoneNotUpdated, service zone and LB zone different
-	err = mockCloud.validateServiceZoneNotUpdated(service, lb, []string{"zoneB"})
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "setting can not be changed")
-
-	// validateServiceZoneNotUpdated, success - service zone and LB zone same
-	err = mockCloud.validateServiceZoneNotUpdated(service, lb, []string{"zoneA"})
-	assert.Nil(t, err)
 }
