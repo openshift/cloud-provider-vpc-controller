@@ -108,7 +108,7 @@ func NewVpcSdkFake() (CloudVpcSdk, error) {
 		ID:                        "subnetID",
 		IPVersion:                 "ipv4",
 		Ipv4CidrBlock:             "10.240.0.0/24",
-		Name:                      "subnet",
+		Name:                      "subnet1",
 		Status:                    "available",
 		TotalIpv4AddressCount:     256,
 		Vpc:                       VpcObjectReference{Name: "vpc", ID: "vpcID"},

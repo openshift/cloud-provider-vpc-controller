@@ -34,7 +34,6 @@ import (
 )
 
 var (
-	mockClusterID  = "clusterID"
 	mockKubeCtl    = fake.NewSimpleClientset()
 	mockKubeCtlErr error
 )
@@ -49,21 +48,11 @@ func TestCloudInit(t *testing.T) {
 
 	// Fail to get kubernetes client
 	mockKubeCtlErr = fmt.Errorf("mock failure")
-	client, clusterID, err := cloudInit()
+	client, err := cloudInit()
 	mockKubeCtlErr = nil
 	assert.Nil(t, client)
-	assert.Equal(t, clusterID, "")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "mock failure")
-
-	// Environemt variable is set
-	os.Setenv(envVarClusterID, mockClusterID)
-	defer os.Unsetenv(envVarClusterID)
-	mockKubeCtl = fake.NewSimpleClientset()
-	client, clusterID, err = cloudInit()
-	assert.NotNil(t, client)
-	assert.Equal(t, clusterID, mockClusterID)
-	assert.Nil(t, err)
 }
 
 func TestGetKubectl(t *testing.T) {

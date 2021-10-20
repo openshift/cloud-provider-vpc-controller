@@ -20,7 +20,6 @@
 package vpcctl
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,11 +29,6 @@ import (
 )
 
 func TestCloudVpc_CreateLoadBalancer(t *testing.T) {
-	configMap := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: VpcCloudProviderConfigMap, Namespace: VpcCloudProviderNamespace},
-		Data:       map[string]string{VpcCloudProviderSubnetsKey: "subnetID"},
-	}
-
 	node := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.0.1", Labels: map[string]string{nodeLabelZone: "zoneA"}}, Status: v1.NodeStatus{Addresses: []v1.NodeAddress{{Address: "192.168.0.1", Type: v1.NodeInternalIP}}}}
 	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "1234"},
 		Spec: v1.ServiceSpec{
@@ -45,7 +39,11 @@ func TestCloudVpc_CreateLoadBalancer(t *testing.T) {
 		}}
 	sdk, _ := NewVpcSdkFake()
 	c := &CloudVpc{
-		Config:     ConfigVpc{},
+		Config: &ConfigVpc{
+			ProviderType: VpcProviderTypeFake,
+			SubnetNames:  "subnet1",
+			VpcName:      "vpc",
+		},
 		Sdk:        sdk,
 		KubeClient: fake.NewSimpleClientset(),
 	}
@@ -71,24 +69,16 @@ func TestCloudVpc_CreateLoadBalancer(t *testing.T) {
 	assert.Equal(t, err.Error(), "ListSubnets failed")
 	c.ClearFakeSdkError("ListSubnets")
 
-	// Create load balancer failed, failed to get cluster subnets from config map
+	// Create load balancer failed, cloud config contains invalid subnet name
+	c.Config.SubnetNames = "invalid"
 	lb, err = c.CreateLoadBalancer("load balancer", service, []*v1.Node{node})
 	assert.Nil(t, lb)
 	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf("Failed to get %s/%s config map", VpcCloudProviderNamespace, VpcCloudProviderConfigMap))
-
-	// Create load balancer failed, cluster subnet config map contains invalid subnet IDs
-	configMap.Data[VpcCloudProviderSubnetsKey] = "invalid subnet"
-	c.KubeClient = fake.NewSimpleClientset(configMap)
-	lb, err = c.CreateLoadBalancer("load balancer", service, []*v1.Node{node})
-	assert.Nil(t, lb)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "invalid VPC subnet")
-	configMap.Data[VpcCloudProviderSubnetsKey] = "subnetID"
+	assert.Equal(t, err.Error(), "None of the configured VPC subnets (invalid) were found")
+	c.Config.SubnetNames = "subnet1"
 
 	// Create load balancer failed, backend nodes service annotation results in no nodes selected
 	service.ObjectMeta.Annotations = map[string]string{serviceAnnotationNodeSelector: nodeLabelZone + "=" + "zoneX"}
-	c.KubeClient = fake.NewSimpleClientset(configMap)
 	lb, err = c.CreateLoadBalancer("load balancer", service, []*v1.Node{node})
 	assert.Nil(t, lb)
 	assert.NotNil(t, err)
@@ -97,7 +87,6 @@ func TestCloudVpc_CreateLoadBalancer(t *testing.T) {
 	// Create load balancer failed, invalid member quota service annotation
 	service.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "invalid"}
 	service.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeCluster
-	c.KubeClient = fake.NewSimpleClientset(configMap)
 	lb, err = c.CreateLoadBalancer("load balancer", service, []*v1.Node{node})
 	assert.Nil(t, lb)
 	assert.NotNil(t, err)
@@ -106,7 +95,6 @@ func TestCloudVpc_CreateLoadBalancer(t *testing.T) {
 
 	// Create load balancer failed, no cluster subnets in the service annotation zone
 	service.ObjectMeta.Annotations = map[string]string{serviceAnnotationZone: "zoneA"}
-	c.KubeClient = fake.NewSimpleClientset(configMap)
 	lb, err = c.CreateLoadBalancer("load balancer", service, []*v1.Node{node})
 	assert.Nil(t, lb)
 	assert.NotNil(t, err)
@@ -114,7 +102,6 @@ func TestCloudVpc_CreateLoadBalancer(t *testing.T) {
 
 	// Create load balancer failed, subnet annotation contains invalid subnets IDs
 	service.ObjectMeta.Annotations = map[string]string{serviceAnnotationSubnets: "subnetID,subnetID-not-valid"}
-	c.KubeClient = fake.NewSimpleClientset(configMap)
 	lb, err = c.CreateLoadBalancer("load balancer", service, []*v1.Node{node})
 	assert.Nil(t, lb)
 	assert.NotNil(t, err)
@@ -128,13 +115,11 @@ func TestCloudVpc_CreateLoadBalancer(t *testing.T) {
 	assert.Contains(t, err.Error(), "no available nodes for this service")
 
 	// Create load balancer - SUCCESS
-	c.KubeClient = fake.NewSimpleClientset(configMap)
 	lb, err = c.CreateLoadBalancer("load balancer", service, []*v1.Node{node})
 	assert.NotNil(t, lb)
 	assert.Nil(t, err)
 
 	// SDK create load balancer operation failed
-	c.KubeClient = fake.NewSimpleClientset(configMap)
 	c.SetFakeSdkError("CreateLoadBalancer")
 	lb, err = c.CreateLoadBalancer("load balancer", service, []*v1.Node{node})
 	assert.Nil(t, lb)
@@ -188,36 +173,9 @@ func TestCloudVpc_GetLoadBalancerStatus(t *testing.T) {
 	assert.Equal(t, status.Ingress[0].IP, "")
 }
 
-func TestCloudVpc_getLoadBalancersInCluster(t *testing.T) {
-	s, _ := NewVpcSdkFake()
-	c := &CloudVpc{Sdk: s}
-
-	// getLoadBalancersInCluster failed, failed to get list of load balancers
-	c.SetFakeSdkError("ListLoadBalancers")
-	lbs, err := c.getLoadBalancersInCluster()
-	assert.Nil(t, lbs)
-	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "ListLoadBalancers failed")
-	c.ClearFakeSdkError("ListLoadBalancers")
-
-	// getLoadBalancersInCluster worked, but no load balancers found in current cluster
-	c.Config.ClusterID = "invalid-clusterID"
-	lbs, err = c.getLoadBalancersInCluster()
-	assert.NotNil(t, lbs)
-	assert.Empty(t, lbs)
-	assert.Nil(t, err)
-
-	// getLoadBalancersInCluster worked, two load balancers found in current cluster
-	c.Config.ClusterID = "clusterID"
-	lbs, err = c.getLoadBalancersInCluster()
-	assert.NotNil(t, lbs)
-	assert.Equal(t, len(lbs), 2)
-	assert.Nil(t, err)
-}
-
 func TestCloudVpc_MonitorLoadBalancers(t *testing.T) {
 	s, _ := NewVpcSdkFake()
-	c := &CloudVpc{Config: ConfigVpc{ClusterID: "clusterID"}, Sdk: s}
+	c := &CloudVpc{Config: &ConfigVpc{ClusterID: "clusterID"}, Sdk: s}
 	serviceNodePort := v1.Service{
 		ObjectMeta: metav1.ObjectMeta{Name: "nodePort", Namespace: "default", UID: "NodePort"},
 		Spec:       v1.ServiceSpec{Type: v1.ServiceTypeNodePort}}
@@ -275,7 +233,7 @@ func TestCloudVpc_UpdateLoadBalancer(t *testing.T) {
 	sdk, _ := NewVpcSdkFake()
 	c := &CloudVpc{
 		Sdk:        sdk,
-		Config:     ConfigVpc{ClusterID: "clusterID"},
+		Config:     &ConfigVpc{ClusterID: "clusterID"},
 		KubeClient: fake.NewSimpleClientset(),
 	}
 	// Update load balancer failed, name not specified

@@ -318,18 +318,16 @@ func (c *CloudVpc) CreateLoadBalancer(lbName string, service *v1.Service, nodes 
 	}
 
 	// Determine what VPC subnets to associate with this load balancer
-	vpcSubnets, err := c.Sdk.ListSubnets()
+	allSubnets, err := c.Sdk.ListSubnets()
 	if err != nil {
 		return nil, err
 	}
-	_, subnetList, err := c.GetClusterVpcSubnetIDs()
-	if err != nil {
-		return nil, err
+	vpcSubnets := c.filterSubnetsByVpcName(allSubnets, c.Config.VpcName)
+	clusterSubnets := c.filterSubnetsByName(vpcSubnets, c.Config.SubnetNames)
+	if len(clusterSubnets) == 0 {
+		return nil, fmt.Errorf("None of the configured VPC subnets (%s) were found", c.Config.SubnetNames)
 	}
-	clusterSubnets, err := c.validateClusterSubnetIDs(subnetList, vpcSubnets)
-	if err != nil {
-		return nil, err
-	}
+	subnetList := c.getSubnetIDs(clusterSubnets)
 	serviceSubnets := c.getServiceSubnets(service)
 	serviceZone := c.getServiceZone(service)
 	if serviceSubnets != "" {
@@ -481,23 +479,6 @@ func (c *CloudVpc) FindLoadBalancer(nameID string, service *v1.Service) (*VpcLoa
 		}
 	}
 	return nil, nil
-}
-
-// getLoadBalancersInCluster - locate all of the VPC load balancers in the current cluster
-func (c *CloudVpc) getLoadBalancersInCluster() ([]*VpcLoadBalancer, error) {
-	lbs, err := c.Sdk.ListLoadBalancers()
-	if err != nil {
-		return nil, err
-	}
-	clusterLbs := []*VpcLoadBalancer{}
-	prefix := VpcLbNamePrefix + "-" + c.Config.ClusterID
-	for _, lb := range lbs {
-		if strings.HasPrefix(lb.Name, prefix) {
-			clusterLbs = append(clusterLbs, lb)
-		}
-	}
-	// Return list of lbs in the current cluster
-	return clusterLbs, nil
 }
 
 // GetLoadBalancerStatus returns the load balancer status for a given VPC host name

@@ -20,15 +20,12 @@
 package vpcctl
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 
-	"gopkg.in/gcfg.v1"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -37,8 +34,8 @@ const (
 
 	// IAM Token Exchange URLs
 	iamPrivateTokenExchangeURL         = "https://private.iam.cloud.ibm.com"      /* #nosec */
-	iamStagePrivateTokenExchangeURL    = "https://private.iam.test.cloud.ibm.com" /* #nosec */
 	iamPublicTokenExchangeURL          = "https://iam.cloud.ibm.com"              /* #nosec */
+	iamStagePrivateTokenExchangeURL    = "https://private.iam.test.cloud.ibm.com" /* #nosec */
 	iamStageTestPublicTokenExchangeURL = "https://iam.stage1.bluemix.net"         /* #nosec */
 
 	nodeLabelDedicated  = "dedicated"
@@ -55,26 +52,14 @@ const (
 	servicePrivateLB                = "private"
 	servicePublicLB                 = "public"
 
-	// VpcCloudProviderNamespace - Namespace where config map is located that contains cluster VPC subnets
-	VpcCloudProviderNamespace = "kube-system"
-	// VpcCloudProviderConfigMap - Name of the config map that contains cluster VPC subnets
-	VpcCloudProviderConfigMap = "ibm-cloud-provider-data"
-	// VpcCloudProviderSubnetsKey - Data field in the config map that contains cluster VPC subnets
-	VpcCloudProviderSubnetsKey = "vpc_subnet_ids"
-	// VpcCloudProviderVpcIDKey - Data field in the config map that contains cluster VPC id
-	VpcCloudProviderVpcIDKey = "vpc_id"
+	// VpcEndpointIaaSBaseURL - baseURL for constructing the VPC infrastructure API Endpoint URL
+	vpcEndpointIaaSProdURL  = "iaas.cloud.ibm.com"
+	vpcEndpointIaaSStageURL = "iaasdev.cloud.ibm.com"
 
 	// VpcProviderTypeFake - Fake SDK interface for VPC
 	VpcProviderTypeFake = "fake"
 	// VpcProviderTypeGen2 - IKS provider type for VPC Gen2
 	VpcProviderTypeGen2 = "g2"
-
-	// VpcSecretNamespace - Namespace where the secret is stored
-	VpcSecretNamespace = "kube-system"
-	// VpcSecretFileName - Name of the secret
-	VpcSecretFileName = "storage-secret-store"
-	// VpcClientDataKey - Key in the secret data where information can be found
-	VpcClientDataKey = "slclient.toml"
 )
 
 var memberNodeLabelsAllowed = [...]string{
@@ -99,166 +84,117 @@ var memberNodeLabelsAllowed = [...]string{
 // VpcLbNamePrefix - Prefix to be used for VPC load balancer
 var VpcLbNamePrefix = "kube"
 
-// --------------------------------------------------------------------------------------------------------------------
-
-// VPCSecret struct for holding VPC information from the cluster secret
-//
-// NOTE:
-// The keys listed below do NOT match what is actually stored in the secret.
-// The keys names have been updated by replacing all underscores "_" with dashes "-".
-// The GO package "gopkg.in/gcfg.v1" can not handle underscores in the key names.
-// The values may also contain underscores. This is valid and allowed by: "gopkg.in/gcfg.v1"
-//
-type VPCSecret struct {
-	// G2 VPC "2"
-	G2RIaaSEndpointURL        string `gcfg:"g2-riaas-endpoint-url"`
-	G2RIaaSEndpointPrivateURL string `gcfg:"g2-riaas-endpoint-private-url"`
-	G2ResourceGroupID         string `gcfg:"g2-resource-group-id"`
-	G2APIKey                  string `gcfg:"g2-api-key"`
-
-	// Generic flags
-	ProviderType string `gcfg:"provider-type"`
-}
-
-// ClusterSecret contains the VPC information read from the secret.  Other data in the secret is not needed
-type ClusterSecret struct {
-	VPC VPCSecret
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-
 // ConfigVpc is the VPC configuration information
 type ConfigVpc struct {
-	APIKeySecret     string // API key of the user
-	ClusterID        string
-	EnablePrivate    bool
-	EndpointURL      string
-	ProviderType     string // "g2" = Gen2
-	ResourceGroupID  string // Resource group of the cluster
-	TokenExchangeURL string
-	VpcID            string // VPC id for the IKS cluster
-}
-
-// CloudVpc is the main VPC cloud provider implementation.
-type CloudVpc struct {
-	KubeClient kubernetes.Interface
-	Config     ConfigVpc
-	Sdk        CloudVpcSdk
-}
-
-// CloudVpcOptions is the main VPC cloud provider implementation.
-type CloudVpcOptions struct {
-	APIKey            string
+	// Externalized config settings from caller
+	APIKeySecret      string
 	ClusterID         string
 	EnablePrivate     bool
 	ProviderType      string
 	Region            string
 	ResourceGroupName string
 	SubnetNames       string
-	WorkerAccountID   string
+	WorkerAccountID   string // Not used, ignored
 	VpcName           string
+	// Internal config settings
+	endpointURL      string
+	resourceGroupID  string
+	tokenExchangeURL string
 }
 
-func NewCloudVpc(kubeClient kubernetes.Interface, options *CloudVpcOptions) (*CloudVpc, error) {
-	c := &CloudVpc{KubeClient: kubeClient}
-	secretData, err := c.ReadKubeSecret()
+// CloudVpc is the main VPC cloud provider implementation.
+type CloudVpc struct {
+	KubeClient kubernetes.Interface
+	Config     *ConfigVpc
+	Sdk        CloudVpcSdk
+}
+
+// getIamEndpoint - retrieve the correct IAM endpoint for the current config
+func (c *ConfigVpc) getIamEndpoint() string {
+	if strings.Contains(c.Region, "stage") {
+		if c.EnablePrivate {
+			return iamStagePrivateTokenExchangeURL
+		}
+		return iamStageTestPublicTokenExchangeURL
+	}
+	if c.EnablePrivate {
+		return iamPrivateTokenExchangeURL
+	}
+	return iamPublicTokenExchangeURL
+}
+
+// getVpcEndpoint - retrieve the correct VPC endpoint for the current config
+func (c *ConfigVpc) getVpcEndpoint() string {
+	endpoint := vpcEndpointIaaSProdURL
+	if strings.Contains(c.Region, "stage") {
+		endpoint = vpcEndpointIaaSStageURL
+	}
+	if c.EnablePrivate {
+		return fmt.Sprintf("https://%s.%s.%s", c.Region, "private", endpoint)
+	}
+	return fmt.Sprintf("https://%s.%s", c.Region, endpoint)
+}
+
+// initialize - initialize VPC config fields that were not set by the cloud provider
+func (c *ConfigVpc) initialize() error {
+	// Validate the config values that were passed in
+	err := c.validate()
+	if err != nil {
+		return err
+	}
+	if c.ProviderType == VpcProviderTypeFake {
+		return nil
+	}
+	// Determine the VPC endpoint URL
+	c.endpointURL = c.getVpcEndpoint()
+	c.endpointURL += "/v1"
+
+	// Determine the token exchange URL
+	c.tokenExchangeURL = c.getIamEndpoint()
+	c.tokenExchangeURL += "/identity/token"
+	return nil
+}
+
+// validate - verify the config data stored in the ConfigVpc object
+func (c *ConfigVpc) validate() error {
+	// Check the fields in the config
+	switch {
+	case c.ClusterID == "":
+		return fmt.Errorf("Missing required cloud configuration setting: clusterID")
+	case c.ProviderType == VpcProviderTypeFake:
+		return nil
+	case c.ProviderType != VpcProviderTypeGen2:
+		return fmt.Errorf("Invalid cloud configuration setting for cluster-default-provider: %s", c.ProviderType)
+	case c.APIKeySecret == "":
+		return fmt.Errorf("Missing required cloud configuration setting: g2Credentials")
+	case c.Region == "":
+		return fmt.Errorf("Missing required cloud configuration setting: region")
+	case c.ResourceGroupName == "":
+		return fmt.Errorf("Missing required cloud configuration setting: g2ResourceGroupName")
+	case c.SubnetNames == "":
+		return fmt.Errorf("Missing required cloud configuration setting: g2VpcSubnetNames")
+	case c.VpcName == "":
+		return fmt.Errorf("Missing required cloud configuration setting: g2VpcName")
+	}
+	// Validation passed
+	return nil
+}
+
+// NewCloudVpc - create new CloudVpc object based on the config data that was passed in
+func NewCloudVpc(kubeClient kubernetes.Interface, config *ConfigVpc) (*CloudVpc, error) {
+	if config == nil {
+		return nil, fmt.Errorf("Missing cloud configuration")
+	}
+	c := &CloudVpc{KubeClient: kubeClient, Config: config}
+	err := c.Config.initialize()
 	if err != nil {
 		return nil, err
 	}
-	err = c.Config.Initialize(options.ClusterID, secretData, options.EnablePrivate)
-	if err != nil {
-		return nil, err
-	}
-	c.Sdk, err = NewCloudVpcSdk(&c.Config)
+	c.Sdk, err = NewCloudVpcSdk(c.Config)
 	if err != nil {
 		return nil, err
 	}
 	return c, nil
-}
-
-// adjustSecretData - Selectively replace underscores with dashes (only in the keys)
-//
-// This routine is needed because the GO package "gopkg.in/gcfg.v1" does not allow
-// underscores to be used in the keys.
-//
-func (c *ConfigVpc) adjustSecretData(secretString string) (string, error) {
-	inputLines := strings.Split(secretString, "\n")
-	outputLines := []string{}
-	for _, line := range inputLines {
-		if !strings.Contains(line, " = ") || !strings.Contains(line, "_") {
-			// No change needed if line does not contain both: " = " and "_"
-			outputLines = append(outputLines, line)
-			continue
-		}
-		// Only need to replace underscores in the key.  Must not alter the value
-		keyValue := strings.Split(line, " = ")
-		if len(keyValue) > 2 {
-			// Line should never contain multiple: " = "
-			return "", fmt.Errorf("Unrecognized string in secret: %s", line)
-		}
-		newLine := strings.ReplaceAll(keyValue[0], "_", "-") + " = " + keyValue[1]
-		outputLines = append(outputLines, newLine)
-	}
-	return strings.Join(outputLines, "\n"), nil
-}
-
-// Initialize - extract secret data into the VPC config object
-func (c *ConfigVpc) Initialize(clusterID, secretData string, enablePrivate bool) error {
-	c.ClusterID = clusterID
-	c.EnablePrivate = enablePrivate
-	var privateRiaasEndpoint string
-	var secretStruct ClusterSecret
-	secretString, err := c.adjustSecretData(secretData)
-	if err != nil {
-		return fmt.Errorf("Secret not formatted correctly: %v", err)
-	}
-	err = gcfg.FatalOnly(gcfg.ReadStringInto(&secretStruct, secretString))
-	if err != nil {
-		return fmt.Errorf("Failed to decode secret: %v", err)
-	}
-	c.ProviderType = secretStruct.VPC.ProviderType
-	if c.ProviderType == "" {
-		c.ProviderType = VpcProviderTypeGen2
-	}
-
-	// Extract values from the the secret
-	if c.ProviderType == VpcProviderTypeGen2 {
-		c.APIKeySecret = secretStruct.VPC.G2APIKey
-		c.EndpointURL = secretStruct.VPC.G2RIaaSEndpointURL
-		c.ResourceGroupID = secretStruct.VPC.G2ResourceGroupID
-		privateRiaasEndpoint = secretStruct.VPC.G2RIaaSEndpointPrivateURL
-	}
-
-	// If there was not API Key in the secret, then return error
-	if c.APIKeySecret == "" && c.ProviderType != VpcProviderTypeFake {
-		return fmt.Errorf("Secret does not contain VPC info: \n%v", secretData)
-	}
-
-	// If private service endpoiint in enabled
-	if c.EnablePrivate {
-		c.TokenExchangeURL = iamPrivateTokenExchangeURL
-		if privateRiaasEndpoint != "" {
-			c.EndpointURL = privateRiaasEndpoint
-		}
-		if strings.Contains(c.EndpointURL, "iaasdev") {
-			c.TokenExchangeURL = iamStagePrivateTokenExchangeURL
-		}
-	} else {
-		c.TokenExchangeURL = iamPublicTokenExchangeURL
-		if strings.Contains(c.EndpointURL, "iaasdev") {
-			c.TokenExchangeURL = iamStageTestPublicTokenExchangeURL
-		}
-	}
-	c.TokenExchangeURL += "/identity/token"
-
-	// Strip any trailing "/" off the endpoint URL before we add the "/v1"
-	c.EndpointURL = strings.TrimSuffix(c.EndpointURL, "/")
-
-	// Make sure there is a trailing "/v1" on the endpointURL
-	if !strings.HasSuffix(c.EndpointURL, "/v1") {
-		c.EndpointURL += "/v1"
-	}
-	return nil
 }
 
 // filterNodesByEdgeLabel - extract only the edge nodes if there any any -or- return all nodes
@@ -330,6 +266,31 @@ func (c *CloudVpc) filterNodesByServiceZone(nodes []*v1.Node, service *v1.Servic
 	return nodes
 }
 
+// filterSubnetsByVpcName - find all of the subnets in the requested zone
+func (c *CloudVpc) filterSubnetsByName(subnets []*VpcSubnet, subnetList string) []*VpcSubnet {
+	desiredSubnets := "," + subnetList + ","
+	matchingSubnets := []*VpcSubnet{}
+	for _, subnet := range subnets {
+		if strings.Contains(desiredSubnets, subnet.Name) {
+			matchingSubnets = append(matchingSubnets, subnet)
+		}
+	}
+	// Return matching subnets
+	return matchingSubnets
+}
+
+// filterSubnetsByVpcName - find all of the subnets in the requested zone
+func (c *CloudVpc) filterSubnetsByVpcName(subnets []*VpcSubnet, vpcName string) []*VpcSubnet {
+	matchingSubnets := []*VpcSubnet{}
+	for _, subnet := range subnets {
+		if subnet.Vpc.Name == vpcName {
+			matchingSubnets = append(matchingSubnets, subnet)
+		}
+	}
+	// Return matching subnets
+	return matchingSubnets
+}
+
 // findNodesMatchingLabelValue - find all of the nodes that match the requested label and value
 func (c *CloudVpc) findNodesMatchingLabelValue(nodes []*v1.Node, filterLabel, filterValue string) []*v1.Node {
 	matchingNodes := []*v1.Node{}
@@ -351,20 +312,6 @@ func (c *CloudVpc) GenerateLoadBalancerName(service *v1.Service) string {
 		lbName = lbName[:63]
 	}
 	return lbName
-}
-
-// GetClusterVpcSubnetIDs - retrieve the VPC subnets associated with the cluster
-func (c *CloudVpc) GetClusterVpcSubnetIDs() (string, []string, error) {
-	cm, err := c.KubeClient.CoreV1().ConfigMaps(VpcCloudProviderNamespace).Get(context.TODO(), VpcCloudProviderConfigMap, metav1.GetOptions{})
-	if err != nil {
-		return "", nil, fmt.Errorf("Failed to get %v/%v config map: %v", VpcCloudProviderNamespace, VpcCloudProviderConfigMap, err)
-	}
-	vpcID := cm.Data[VpcCloudProviderVpcIDKey]
-	subnets := cm.Data[VpcCloudProviderSubnetsKey]
-	if subnets == "" {
-		return "", nil, fmt.Errorf("The %v/%v config map does not contain key: [%s]", VpcCloudProviderNamespace, VpcCloudProviderConfigMap, VpcCloudProviderSubnetsKey)
-	}
-	return vpcID, strings.Split(subnets, ","), nil
 }
 
 // getNodeIDs - get the node identifier for each node in the list
@@ -507,45 +454,7 @@ func (c *CloudVpc) isServicePublic(service *v1.Service) bool {
 
 // IsVpcConfigStoredInSecret - does the specified secret contain any VPC related config information
 func (c *CloudVpc) IsVpcConfigStoredInSecret(secret *v1.Secret) bool {
-	return (secret.ObjectMeta.Namespace == VpcSecretNamespace && secret.ObjectMeta.Name == VpcSecretFileName)
-}
-
-// ReadKubeSecret - read the Kube secret and extract the data into a string
-func (c *CloudVpc) ReadKubeSecret() (string, error) {
-	kubeSecret, err := c.KubeClient.CoreV1().Secrets(VpcSecretNamespace).Get(context.TODO(), VpcSecretFileName, metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("Failed to get secret: %v", err)
-	}
-	return string(kubeSecret.Data[VpcClientDataKey]), nil
-}
-
-// Validate the cluster subnets from the config map
-func (c *CloudVpc) validateClusterSubnetIDs(clusterSubnets []string, vpcSubnets []*VpcSubnet) ([]*VpcSubnet, error) {
-	foundSubnets := []*VpcSubnet{}
-	for _, subnetID := range clusterSubnets {
-		found := false
-		for _, subnet := range vpcSubnets {
-			if subnetID == subnet.ID {
-				found = true
-				foundSubnets = append(foundSubnets, subnet)
-				break
-			}
-		}
-		if !found {
-			return nil, fmt.Errorf("The config map %s/%s contains invalid VPC subnet %s",
-				VpcCloudProviderNamespace, VpcCloudProviderConfigMap, subnetID)
-		}
-	}
-	if len(foundSubnets) > 1 {
-		vpcID := foundSubnets[0].Vpc.ID
-		for _, subnet := range foundSubnets {
-			if vpcID != subnet.Vpc.ID {
-				return nil, fmt.Errorf("The config map %s/%s contains VPC subnets in different VPCs: %s and %s",
-					VpcCloudProviderNamespace, VpcCloudProviderConfigMap, foundSubnets[0].ID, subnet.ID)
-			}
-		}
-	}
-	return foundSubnets, nil
+	return false
 }
 
 // validateService - validate the service and the requested features on the service

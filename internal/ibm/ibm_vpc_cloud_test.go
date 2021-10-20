@@ -33,11 +33,11 @@ func TestCloud_InitCloudVpc(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestCloud_NewCloudVpcOptions(t *testing.T) {
+func TestCloud_NewConfigVpc(t *testing.T) {
 	// Test for the case of cloud config not initialized
 	c := Cloud{}
-	options, err := c.NewCloudVpcOptions(true)
-	assert.Nil(t, options)
+	config, err := c.NewConfigVpc(true)
+	assert.Nil(t, config)
 	assert.NotNil(t, err)
 	assert.Equal(t, err.Error(), "Cloud config not initialized")
 
@@ -47,30 +47,30 @@ func TestCloud_NewCloudVpcOptions(t *testing.T) {
 		ClusterID:                "clusterID",
 		ProviderType:             "g2",
 		G2Credentials:            "../../test-fixtures/missing-file.txt",
-		G2ResourceGroupName:      "default",
+		G2ResourceGroupName:      "Default",
 		G2VpcSubnetNames:         "subnet1,subnet2,subnet3",
 		G2WorkerServiceAccountID: "accountID",
 		G2VpcName:                "vpc",
 	}}
-	options, err = c.NewCloudVpcOptions(true)
-	assert.Nil(t, options)
+	config, err = c.NewConfigVpc(true)
+	assert.Nil(t, config)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed to read credentials")
 
 	// Successfully return CloudVpcOptions
 	c.Config.Prov.G2Credentials = "../../test-fixtures/creds.txt"
-	options, err = c.NewCloudVpcOptions(true)
-	assert.NotNil(t, options)
+	config, err = c.NewConfigVpc(true)
+	assert.NotNil(t, config)
 	assert.Nil(t, err)
-	assert.Equal(t, options.APIKey, "apiKey-1234")
-	assert.Equal(t, options.ClusterID, "clusterID")
-	assert.Equal(t, options.EnablePrivate, true)
-	assert.Equal(t, options.ProviderType, "g2")
-	assert.Equal(t, options.Region, "us-south")
-	assert.Equal(t, options.ResourceGroupName, "default")
-	assert.Equal(t, options.SubnetNames, "subnet1,subnet2,subnet3")
-	assert.Equal(t, options.WorkerAccountID, "accountID")
-	assert.Equal(t, options.VpcName, "vpc")
+	assert.Equal(t, config.APIKeySecret, "apiKey-1234")
+	assert.Equal(t, config.ClusterID, "clusterID")
+	assert.Equal(t, config.EnablePrivate, true)
+	assert.Equal(t, config.ProviderType, "g2")
+	assert.Equal(t, config.Region, "us-south")
+	assert.Equal(t, config.ResourceGroupName, "Default")
+	assert.Equal(t, config.SubnetNames, "subnet1,subnet2,subnet3")
+	assert.Equal(t, config.WorkerAccountID, "accountID")
+	assert.Equal(t, config.VpcName, "vpc")
 }
 
 func TestCloud_ReadCloudConfig(t *testing.T) {
@@ -95,7 +95,7 @@ func TestCloud_ReadCloudConfig(t *testing.T) {
 	assert.Equal(t, config.Prov.ProviderType, "g2")
 	assert.Equal(t, config.Prov.Region, "us-south")
 	assert.Equal(t, config.Prov.G2Credentials, "../../test-fixtures/creds.txt")
-	assert.Equal(t, config.Prov.G2ResourceGroupName, "default")
+	assert.Equal(t, config.Prov.G2ResourceGroupName, "Default")
 	assert.Equal(t, config.Prov.G2VpcSubnetNames, "subnet1,subnet2,subnet3")
 	assert.Equal(t, config.Prov.G2VpcName, "vpc")
 }

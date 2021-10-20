@@ -37,10 +37,12 @@ import (
 )
 
 const (
-	envVarClusterID      = "VPCCTL_CLUSTER_ID"
-	envVarKubeConfig     = "KUBECONFIG"
-	envVarLbPrefix       = "VPCCTL_LB_PREFIX"
-	envVarPublicEndPoint = "VPCCTL_PUBLIC_ENDPOINT"
+	defaultCloudConfPath = "/etc/ibm/cloud.conf"
+
+	envVarCloudConfigPath = "VPCCTL_CLOUD_CONFIG"
+	envVarKubeConfig      = "KUBECONFIG"
+	envVarLbPrefix        = "VPCCTL_LB_PREFIX"
+	envVarPublicEndPoint  = "VPCCTL_PUBLIC_ENDPOINT"
 )
 
 // Variable that can be overridden by unit tests
@@ -48,22 +50,17 @@ var getKubernetesClient = getKubectl
 var runtimeOS = runtime.GOOS
 
 // Single init routine to perform some common initialization
-func cloudInit() (kubernetes.Interface, string, error) {
+func cloudInit() (kubernetes.Interface, error) {
 	client, err := getKubernetesClient()
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	// If env var is set, use the specified VPC LB prefix instead of "kube-"
 	lbPrefix := strings.ToLower(os.Getenv(envVarLbPrefix))
 	if lbPrefix != "" {
 		vpcctl.VpcLbNamePrefix = lbPrefix
 	}
-	return client, getClusterID(), err
-}
-
-// getClusterID - Retrieve the IKS cluster id
-func getClusterID() string {
-	return os.Getenv(envVarClusterID)
+	return client, err
 }
 
 // getKubectl - Create client connection to kubernetes master

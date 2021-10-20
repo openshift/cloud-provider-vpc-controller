@@ -20,38 +20,13 @@
 package vpcctl
 
 import (
-	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
-
-const (
-	cluster = "bqcssbbd0bsui62odcdg"
-)
-
-var gen2Data = `[VPC]
-g2_riaas_endpoint_url = "https://us-south.iaas.cloud.ibm.com:443"
-g2_riaas_endpoint_private_url = "https://private-us-south.iaas.cloud.ibm.com:443"
-g2_resource_group_id = "resourceGroup"
-g2_api_key = "foobar"
-provider_type = "g2"
-iks_token_exchange_endpoint_private_url = "https://private.us-south.containers.cloud.ibm.com"`
-var gen2CloudVpc = &CloudVpc{
-	Config: ConfigVpc{
-		APIKeySecret:     "foobar",
-		ClusterID:        cluster,
-		EnablePrivate:    true,
-		EndpointURL:      "https://private-us-south.iaas.cloud.ibm.com:443/v1",
-		ProviderType:     "g2",
-		ResourceGroupID:  "resourceGroup",
-		TokenExchangeURL: "https://private.iam.cloud.ibm.com/identity/token",
-	}}
 
 var mockCloud = CloudVpc{KubeClient: fake.NewSimpleClientset()}
 
@@ -71,68 +46,186 @@ var mockNode3 = &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.3.3",
 var mockNode4 = &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.1.1",
 	Labels: map[string]string{nodeLabelZone: "zoneA", nodeLabelDedicated: nodeLabelValueEdge}}, Status: v1.NodeStatus{Addresses: nil}}
 
-func getSecretNotFound() kubernetes.Interface {
-	return fake.NewSimpleClientset()
-}
-func getSecretData(secretData string) kubernetes.Interface {
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: VpcSecretFileName, Namespace: VpcSecretNamespace},
-		Data:       map[string][]byte{VpcClientDataKey: []byte(secretData)},
+func TestConfigVpc_getIamEndpoint(t *testing.T) {
+	config := &ConfigVpc{
+		Region: "us-south",
 	}
-	return fake.NewSimpleClientset(secret)
+	// Check prod public VPC endpoint
+	url := config.getIamEndpoint()
+	assert.Equal(t, url, iamPublicTokenExchangeURL)
+
+	// Check prod private VPC endpoint
+	config.EnablePrivate = true
+	url = config.getIamEndpoint()
+	assert.Equal(t, url, iamPrivateTokenExchangeURL)
+
+	// Check stage public VPC endpoint
+	config.EnablePrivate = false
+	config.Region = "us-south-stage01"
+	url = config.getIamEndpoint()
+	assert.Equal(t, url, iamStageTestPublicTokenExchangeURL)
+
+	// Check stage private VPC endpoint
+	config.EnablePrivate = true
+	url = config.getIamEndpoint()
+	assert.Equal(t, url, iamStagePrivateTokenExchangeURL)
+}
+
+func TestConfigVpc_getVpcEndpoint(t *testing.T) {
+	config := &ConfigVpc{
+		Region: "us-south",
+	}
+	// Check prod public VPC endpoint
+	url := config.getVpcEndpoint()
+	assert.Equal(t, url, "https://us-south.iaas.cloud.ibm.com")
+
+	// Check prod private VPC endpoint
+	config.EnablePrivate = true
+	url = config.getVpcEndpoint()
+	assert.Equal(t, url, "https://us-south.private.iaas.cloud.ibm.com")
+
+	// Check stage public VPC endpoint
+	config.EnablePrivate = false
+	config.Region = "us-south-stage01"
+	url = config.getVpcEndpoint()
+	assert.Equal(t, url, "https://us-south-stage01.iaasdev.cloud.ibm.com")
+
+	// Check stage private VPC endpoint
+	config.EnablePrivate = true
+	url = config.getVpcEndpoint()
+	assert.Equal(t, url, "https://us-south-stage01.private.iaasdev.cloud.ibm.com")
+}
+
+func TestConfigVpc_initialize(t *testing.T) {
+	config := &ConfigVpc{
+		APIKeySecret:      "apiKey",
+		ClusterID:         "clusterID",
+		EnablePrivate:     false,
+		Region:            "us-south",
+		ResourceGroupName: "Default",
+		SubnetNames:       "subnet1,subnet2,subnet3",
+		VpcName:           "vpc",
+	}
+	// ProviderType = "invalid".  Error is returned
+	config.ProviderType = "invalid"
+	err := config.initialize()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Invalid cloud configuration setting")
+
+	// ProviderType = "fake".  Endpoints are not assigned
+	config.ProviderType = VpcProviderTypeFake
+	err = config.initialize()
+	assert.Nil(t, err)
+	assert.Equal(t, config.endpointURL, "")
+	assert.Equal(t, config.tokenExchangeURL, "")
+
+	// ProviderType = "g2".  Endpoints are set
+	config.ProviderType = VpcProviderTypeGen2
+	err = config.initialize()
+	assert.Nil(t, err)
+	assert.Equal(t, config.endpointURL, "https://us-south.iaas.cloud.ibm.com/v1")
+	assert.Equal(t, config.tokenExchangeURL, "https://iam.cloud.ibm.com/identity/token")
+}
+
+func TestConfigVpc_validate(t *testing.T) {
+	config := &ConfigVpc{
+		APIKeySecret:      "apiKey",
+		ClusterID:         "clusterID",
+		EnablePrivate:     false,
+		ProviderType:      VpcProviderTypeGen2,
+		Region:            "us-south",
+		ResourceGroupName: "Default",
+		SubnetNames:       "subnet1,subnet2,subnet3",
+		WorkerAccountID:   "accountID",
+		VpcName:           "vpc",
+	}
+	// Verify valid config returns no error
+	err := config.validate()
+	assert.Nil(t, err)
+
+	// APIKeySecret not set
+	config.APIKeySecret = ""
+	err = config.validate()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Missing required cloud configuration setting")
+	config.APIKeySecret = "apiKey"
+
+	// ClusterID not set
+	config.ClusterID = ""
+	err = config.validate()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Missing required cloud configuration setting")
+	config.ClusterID = "clusterID"
+
+	// ProviderType set to "fake"
+	config.ProviderType = VpcProviderTypeFake
+	err = config.validate()
+	assert.Nil(t, err)
+
+	// ProviderType not set
+	config.ProviderType = ""
+	err = config.validate()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Invalid cloud configuration setting")
+	config.ProviderType = VpcProviderTypeGen2
+
+	// Region not set
+	config.Region = ""
+	err = config.validate()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Missing required cloud configuration setting")
+	config.Region = "us-south"
+
+	// ResourceGroupName not set
+	config.ResourceGroupName = ""
+	err = config.validate()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Missing required cloud configuration setting")
+	config.ResourceGroupName = "Default"
+
+	// SubnetNames not set
+	config.SubnetNames = ""
+	err = config.validate()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Missing required cloud configuration setting")
+	config.SubnetNames = "subnet1,subnet2,subnet3"
+
+	// WorkerAccountID not set
+	config.WorkerAccountID = ""
+	err = config.validate()
+	assert.Nil(t, err)
+	config.WorkerAccountID = "accountID"
+
+	// VpcName not set
+	config.VpcName = ""
+	err = config.validate()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Missing required cloud configuration setting")
+	config.VpcName = "subnet1,subnet2,subnet3"
 }
 
 func TestNewCloudVpc(t *testing.T) {
-	type args struct {
-		kubeClient            kubernetes.Interface
-		clusterID             string
-		enablePrivateEndpoint bool
+	kubeClient := fake.NewSimpleClientset()
+	vpc, err := NewCloudVpc(kubeClient, nil)
+	assert.Nil(t, vpc)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Missing cloud configuration")
+
+	// Verify empty ConfigVpc will generate an error
+	config := &ConfigVpc{}
+	vpc, err = NewCloudVpc(kubeClient, config)
+	assert.Nil(t, vpc)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Missing required cloud configuration setting")
+
+	// Verify "fake" CloudVpc can be created
+	config = &ConfigVpc{
+		ClusterID:    "clusterID",
+		ProviderType: VpcProviderTypeFake,
 	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *CloudVpc
-		wantErr bool
-	}{
-		{
-			name: "No secret",
-			args: args{kubeClient: getSecretNotFound(), clusterID: cluster, enablePrivateEndpoint: false},
-			want: nil, wantErr: true,
-		},
-		{
-			name: "No [VPC] data in the secret",
-			args: args{kubeClient: getSecretData("Secret Data"), clusterID: cluster, enablePrivateEndpoint: false},
-			want: nil, wantErr: true,
-		},
-		{
-			name: "No API Key in the secret",
-			args: args{kubeClient: getSecretData("[VPC]"), clusterID: cluster, enablePrivateEndpoint: false},
-			want: nil, wantErr: true,
-		},
-		{
-			name: "Valid Gen2 secret - encrypted / private service endpoint",
-			args: args{kubeClient: getSecretData(gen2Data), clusterID: cluster, enablePrivateEndpoint: true},
-			want: gen2CloudVpc, wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			options := &CloudVpcOptions{
-				ClusterID:       tt.args.clusterID,
-				EnablePrivate:   tt.args.enablePrivateEndpoint,
-				WorkerAccountID: "workerAccountID",
-			}
-			got, err := NewCloudVpc(tt.args.kubeClient, options)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewCloudVpc() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			// if got != nil && tt.want != nil && !equalCloudVpc(got, tt.want) {
-			if got != nil && tt.want != nil && !reflect.DeepEqual(got.Config, tt.want.Config) {
-				t.Errorf("NewCloudVpc()\ngot = %+v\nwant = %+v", got.Config, tt.want.Config)
-			}
-		})
-	}
+	vpc, err = NewCloudVpc(kubeClient, config)
+	assert.NotNil(t, vpc)
+	assert.Nil(t, err)
 }
 
 func TestCloudVpc_FilterNodesByEdgeLabel(t *testing.T) {
@@ -219,6 +312,35 @@ func TestCloudVpc_FilterNodesByServiceZone(t *testing.T) {
 	assert.Equal(t, outNodes[0].Name, mockNode1.Name)
 }
 
+func TestCloudVpc_filterSubnetsByName(t *testing.T) {
+	// No subnets matching the requested subnet name
+	inSubnets := []*VpcSubnet{{Name: "subnet1"}, {Name: "subnet2"}, {Name: "subnet3"}}
+	outSubnets := mockCloud.filterSubnetsByName(inSubnets, "subnetX")
+	assert.Equal(t, len(outSubnets), 0)
+
+	// Find the two subnets that match
+	outSubnets = mockCloud.filterSubnetsByName(inSubnets, "subnet1,subnet3")
+	assert.Equal(t, len(outSubnets), 2)
+	assert.Equal(t, outSubnets[0].Name, "subnet1")
+	assert.Equal(t, outSubnets[1].Name, "subnet3")
+}
+
+func TestCloudVpc_filterSubnetsByVpcName(t *testing.T) {
+	// No subnets matching the requested subnet name
+	inSubnets := []*VpcSubnet{
+		{Name: "subnet1", Vpc: VpcObjectReference{Name: "vpc1"}},
+		{Name: "subnet2", Vpc: VpcObjectReference{Name: "vpc2"}},
+		{Name: "subnet3", Vpc: VpcObjectReference{Name: "vpc3"}},
+	}
+	outSubnets := mockCloud.filterSubnetsByVpcName(inSubnets, "vpcX")
+	assert.Equal(t, len(outSubnets), 0)
+
+	// Find the two subnets that match
+	outSubnets = mockCloud.filterSubnetsByVpcName(inSubnets, "vpc2")
+	assert.Equal(t, len(outSubnets), 1)
+	assert.Equal(t, outSubnets[0].Name, "subnet2")
+}
+
 func TestCloudVpc_FindNodesMatchingLabelValue(t *testing.T) {
 	// Pull out the 1 edge node from the list of 2 nodes
 	inNodes := []*v1.Node{mockNode1, mockNode2}
@@ -235,7 +357,7 @@ func TestCloudVpc_FindNodesMatchingLabelValue(t *testing.T) {
 func TestCloudVpc_GenerateLoadBalancerName(t *testing.T) {
 	clusterID := "12345678901234567890"
 	c := &CloudVpc{
-		Config: ConfigVpc{ClusterID: clusterID},
+		Config: &ConfigVpc{ClusterID: clusterID},
 	}
 	kubeService := &v1.Service{ObjectMeta: metav1.ObjectMeta{
 		Name: "echo-server", Namespace: "default", UID: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"}}
@@ -243,31 +365,6 @@ func TestCloudVpc_GenerateLoadBalancerName(t *testing.T) {
 	lbName = lbName[:63]
 	result := c.GenerateLoadBalancerName(kubeService)
 	assert.Equal(t, result, lbName)
-}
-
-func TestCloudVpc_GetClusterSubnets(t *testing.T) {
-	c := CloudVpc{KubeClient: fake.NewSimpleClientset()}
-	vpcID, subnets, err := c.GetClusterVpcSubnetIDs()
-	assert.Equal(t, vpcID, "")
-	assert.Equal(t, len(subnets), 0)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf("Failed to get %s/%s config map", VpcCloudProviderNamespace, VpcCloudProviderConfigMap))
-
-	configMap := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: VpcCloudProviderConfigMap, Namespace: VpcCloudProviderNamespace}}
-	c.KubeClient = fake.NewSimpleClientset(configMap)
-	vpcID, subnets, err = c.GetClusterVpcSubnetIDs()
-	assert.Equal(t, vpcID, "")
-	assert.Equal(t, len(subnets), 0)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "config map does not contain key")
-
-	configMap.Data = map[string]string{VpcCloudProviderSubnetsKey: "f16dd75c-dce9-4724-bab4-59db6aa2300a", VpcCloudProviderVpcIDKey: "1234-5678"}
-	c.KubeClient = fake.NewSimpleClientset(configMap)
-	vpcID, subnets, err = c.GetClusterVpcSubnetIDs()
-	assert.Equal(t, vpcID, "1234-5678")
-	assert.Equal(t, len(subnets), 1)
-	assert.Equal(t, subnets[0], "f16dd75c-dce9-4724-bab4-59db6aa2300a")
-	assert.Nil(t, err)
 }
 
 func TestCloudVpc_GetNodeIDs(t *testing.T) {
@@ -387,40 +484,9 @@ func TestCloudVpc_IsServicePublic(t *testing.T) {
 }
 
 func TestCloudVpc_IsVpcConfigStoredInSecret(t *testing.T) {
-	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: VpcSecretFileName, Namespace: VpcSecretNamespace}}
+	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "my-secret", Namespace: "default"}}
 	result := mockCloud.IsVpcConfigStoredInSecret(secret)
-	assert.Equal(t, result, true)
-	secret = &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "my-secret", Namespace: "default"}}
-	result = mockCloud.IsVpcConfigStoredInSecret(secret)
 	assert.Equal(t, result, false)
-}
-
-func TestCloudVpc_ValidateClusterSubnetIDs(t *testing.T) {
-	clusterSubnets := []string{"subnetID"}
-	vpcSubnets := []*VpcSubnet{{ID: "subnetID"}}
-
-	// validateClusterSubnetIDs, success
-	foundSubnets, err := mockCloud.validateClusterSubnetIDs(clusterSubnets, vpcSubnets)
-	assert.Equal(t, len(foundSubnets), 1)
-	assert.Nil(t, err)
-
-	// validateClusterSubnetIDs failed, invalid subnet ID
-	clusterSubnets = []string{"invalid subnet"}
-	foundSubnets, err = mockCloud.validateClusterSubnetIDs(clusterSubnets, vpcSubnets)
-	assert.Nil(t, foundSubnets)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "invalid VPC subnet")
-
-	// validateClusterSubnetIDs failed, multiple subnets across different VPCs
-	clusterSubnets = []string{"subnet1", "subnet2"}
-	vpcSubnets = []*VpcSubnet{
-		{ID: "subnet1", Vpc: VpcObjectReference{ID: "vpc1"}},
-		{ID: "subnet2", Vpc: VpcObjectReference{ID: "vpc2"}},
-	}
-	foundSubnets, err = mockCloud.validateClusterSubnetIDs(clusterSubnets, vpcSubnets)
-	assert.Nil(t, foundSubnets)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "subnets in different VPCs")
 }
 
 func TestCloudVpc_validateService(t *testing.T) {

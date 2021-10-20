@@ -22,6 +22,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"cloud.ibm.com/cloud-provider-vpc-controller/internal/ibm"
 	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/klog"
@@ -184,11 +185,19 @@ func DeleteLoadBalancer(lbName string) error {
 
 // GetCloudProviderVpc - Retrieve cloud provider CloudVpc object
 func GetCloudProviderVpc() (*vpcctl.CloudVpc, error) {
-	client, clusterID, err := cloudInit()
+	client, err := cloudInit()
 	if err != nil {
 		return nil, err
 	}
-	cloud := ibm.Cloud{KubeClient: client, Config: &ibm.CloudConfig{Prov: ibm.Provider{ClusterID: clusterID}}}
+	configPath, _ := os.LookupEnv(envVarCloudConfigPath)
+	if configPath == "" {
+		configPath = defaultCloudConfPath
+	}
+	cloud := ibm.Cloud{KubeClient: client}
+	cloud.Config, err = cloud.ReadCloudConfig(configPath)
+	if err != nil {
+		return nil, err
+	}
 	vpc, err := cloud.InitCloudVpc(shouldPrivateEndpointBeEnabled())
 	if err != nil {
 		return nil, err

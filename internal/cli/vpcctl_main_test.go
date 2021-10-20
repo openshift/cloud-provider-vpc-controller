@@ -23,7 +23,6 @@ import (
 	"os"
 	"testing"
 
-	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
 	"github.com/stretchr/testify/assert"
 
 	v1 "k8s.io/api/core/v1"
@@ -33,15 +32,13 @@ import (
 )
 
 var (
-	mockSecret = &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "storage-secret-store", Namespace: "kube-system"},
-		Data: map[string][]byte{"slclient.toml": []byte(`[VPC]
-	provider_type = "fake"`)}}
 	mockService = &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "1234"}}
-	mockSubnetMap = &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: vpcctl.VpcCloudProviderConfigMap, Namespace: vpcctl.VpcCloudProviderNamespace},
-		Data:       map[string]string{vpcctl.VpcCloudProviderSubnetsKey: "subnetID"}}
+)
+
+const (
+	cloudConfPathError = "../../test-fixtures/cloud-conf-error.ini"
+	cloudConfPathFake  = "../../test-fixtures/cloud-conf-fake.ini"
 )
 
 func TestCreateLoadBalancer(t *testing.T) {
@@ -57,38 +54,39 @@ func TestCreateLoadBalancer(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, err.Error(), "Required argument is missing")
 
-	// No secret
-	os.Setenv(envVarClusterID, mockClusterID)
-	defer os.Unsetenv(envVarClusterID)
+	// Invalid configuration
+	os.Setenv(envVarCloudConfigPath, cloudConfPathError)
+	defer os.Unsetenv(envVarCloudConfigPath)
 	mockKubeCtl = fake.NewSimpleClientset()
 	err = CreateLoadBalancer("echo-server", "")
 	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Failed to get secret")
+	assert.Contains(t, err.Error(), "fatal error occurred processing file")
 
-	// Valid secret - service not found
-	mockKubeCtl = fake.NewSimpleClientset(mockSecret, mockService)
+	// Valid configuration - service not found
+	os.Setenv(envVarCloudConfigPath, cloudConfPathFake)
+	mockKubeCtl = fake.NewSimpleClientset(mockService)
 	err = CreateLoadBalancer("lbName", "invalid-service")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed to get service")
 
-	// Valid secret - create failed
-	mockKubeCtl = fake.NewSimpleClientset(mockSecret, mockService, mockSubnetMap)
+	// Valid configuration - create failed
+	mockKubeCtl = fake.NewSimpleClientset(mockService)
 	err = CreateLoadBalancer("echo-server", "")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "no available nodes for this service")
 
-	// Valid secret - create worked
-	mockKubeCtl = fake.NewSimpleClientset(mockSecret, mockService, mockNode, mockSubnetMap)
+	// Valid configuration - create worked
+	mockKubeCtl = fake.NewSimpleClientset(mockService, mockNode)
 	err = CreateLoadBalancer("echo-server", "")
 	assert.Nil(t, err)
 
-	// Valid secret - LB already exists, but it is not ready
-	mockKubeCtl = fake.NewSimpleClientset(mockSecret, mockService, mockNode, mockSubnetMap)
+	// Valid configuration - LB already exists, but it is not ready
+	mockKubeCtl = fake.NewSimpleClientset(mockService, mockNode)
 	err = CreateLoadBalancer("NotReady", "echo-server")
 	assert.Nil(t, err)
 
-	// Valid secret - LB exists, update LB failed. No nodes
-	mockKubeCtl = fake.NewSimpleClientset(mockSecret, mockService, mockSubnetMap)
+	// Valid configuration - LB exists, update LB failed. No nodes
+	mockKubeCtl = fake.NewSimpleClientset(mockService)
 	err = CreateLoadBalancer("Ready", "echo-server")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "no available nodes")
@@ -103,26 +101,27 @@ func TestDeleteLoadBalancer(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, err.Error(), "Required argument is missing")
 
-	// No secret
-	os.Setenv(envVarClusterID, mockClusterID)
-	defer os.Unsetenv(envVarClusterID)
+	// No configuration
+	os.Setenv(envVarCloudConfigPath, cloudConfPathError)
+	defer os.Unsetenv(envVarCloudConfigPath)
 	mockKubeCtl = fake.NewSimpleClientset()
 	err = DeleteLoadBalancer("load balancer")
 	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Failed to get secret")
+	assert.Contains(t, err.Error(), "fatal error occurred processing file")
 
-	// Valid secret - LB not found
-	mockKubeCtl = fake.NewSimpleClientset(mockSecret, mockService)
+	// Valid configuration - LB not found
+	os.Setenv(envVarCloudConfigPath, cloudConfPathFake)
+	mockKubeCtl = fake.NewSimpleClientset(mockService)
 	err = DeleteLoadBalancer("LB not found")
 	assert.Nil(t, err)
 
-	// Valid secret - LB not found, Kube service passed in
-	mockKubeCtl = fake.NewSimpleClientset(mockSecret, mockService)
+	// Valid configuration - LB not found, Kube service passed in
+	mockKubeCtl = fake.NewSimpleClientset(mockService)
 	err = DeleteLoadBalancer("echo-server")
 	assert.Nil(t, err)
 
-	// Valid secret - LB found, Ready, Deleted
-	mockKubeCtl = fake.NewSimpleClientset(mockSecret, mockService)
+	// Valid configuration - LB found, Ready, Deleted
+	mockKubeCtl = fake.NewSimpleClientset(mockService)
 	err = DeleteLoadBalancer("Ready")
 	assert.Nil(t, err)
 }
@@ -142,22 +141,23 @@ func TestMonitorLoadBalancers(t *testing.T) {
 	// Return mock kubectl
 	getKubernetesClient = mockGetKubectl
 
-	// No secret
-	os.Setenv(envVarClusterID, mockClusterID)
-	defer os.Unsetenv(envVarClusterID)
+	// No configuration
+	os.Setenv(envVarCloudConfigPath, cloudConfPathError)
+	defer os.Unsetenv(envVarCloudConfigPath)
 	mockKubeCtl = fake.NewSimpleClientset()
 	err := MonitorLoadBalancers()
 	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Failed to get secret")
+	assert.Contains(t, err.Error(), "fatal error occurred processing file")
 
 	// Success
+	os.Setenv(envVarCloudConfigPath, cloudConfPathFake)
 	serviceNodePort := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "nodePort", Namespace: "default", UID: "NodePort"},
 		Spec: v1.ServiceSpec{Type: v1.ServiceTypeNodePort}}
 	serviceNotFound := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "notFound", Namespace: "default", UID: "NotFound"},
 		Spec: v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
 	serviceNotReady := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "notReady", Namespace: "default", UID: "NotReady"},
 		Spec: v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
-	mockKubeCtl = fake.NewSimpleClientset(mockSecret, serviceNodePort, serviceNotFound, serviceNotReady)
+	mockKubeCtl = fake.NewSimpleClientset(serviceNodePort, serviceNotFound, serviceNotReady)
 	err = MonitorLoadBalancers()
 	assert.Nil(t, err)
 }
@@ -171,16 +171,16 @@ func TestStatusLoadBalancer(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, err.Error(), "Required argument is missing")
 
-	// No secret
-	os.Setenv(envVarClusterID, mockClusterID)
-	defer os.Unsetenv(envVarClusterID)
+	// No configuration
+	os.Setenv(envVarCloudConfigPath, cloudConfPathError)
+	defer os.Unsetenv(envVarCloudConfigPath)
 	mockKubeCtl = fake.NewSimpleClientset()
 	err = StatusLoadBalancer("LB")
 	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Failed to get secret")
+	assert.Contains(t, err.Error(), "fatal error occurred processing file")
 
-	// Valid secret
-	mockKubeCtl = fake.NewSimpleClientset(mockSecret)
+	// Valid configuration
+	os.Setenv(envVarCloudConfigPath, cloudConfPathFake)
 	err = StatusLoadBalancer("LB not found")
 	assert.Nil(t, err)
 
@@ -191,4 +191,43 @@ func TestStatusLoadBalancer(t *testing.T) {
 	// Retrieve status of LB named: "NotReady"
 	err = StatusLoadBalancer("NotReady")
 	assert.Nil(t, err)
+}
+
+func TestUpdateLoadBalancer(t *testing.T) {
+	// Return mock kubectl
+	getKubernetesClient = mockGetKubectl
+
+	// // Argument not specified
+	err := UpdateLoadBalancer("", "")
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), "Required argument is missing")
+
+	// No configuration
+	os.Setenv(envVarCloudConfigPath, cloudConfPathError)
+	defer os.Unsetenv(envVarCloudConfigPath)
+	mockKubeCtl = fake.NewSimpleClientset()
+	err = UpdateLoadBalancer("lbName", "echo-server")
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "fatal error occurred processing file")
+
+	// Valid configuration - service not found
+	os.Setenv(envVarCloudConfigPath, cloudConfPathFake)
+	mockKubeCtl = fake.NewSimpleClientset(mockService)
+	err = UpdateLoadBalancer("lbName", "invalid-service")
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed to get service")
+
+	// Valid configuration/service - failed to find load balancer
+	err = UpdateLoadBalancer("lbName", "echo-server")
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "not found")
+
+	// Valid configuration/service - LB exists, but not ready
+	err = UpdateLoadBalancer("NotReady", "echo-server")
+	assert.Nil(t, err)
+
+	// Valid configuration/service - LB exists, update failed.  No nodes
+	err = UpdateLoadBalancer("Ready", "echo-server")
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "no available nodes")
 }

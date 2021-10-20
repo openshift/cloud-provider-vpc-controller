@@ -35,27 +35,27 @@ func (c *Cloud) InitCloudVpc(enablePrivateEndpoint bool) (*vpcctl.CloudVpc, erro
 	if cloudVpc != nil {
 		return cloudVpc, nil
 	}
-	// Initialize options based on values in the cloud provider
-	options, err := c.NewCloudVpcOptions(enablePrivateEndpoint)
+	// Initialize config based on values in the cloud provider
+	config, err := c.NewConfigVpc(enablePrivateEndpoint)
 	if err != nil {
 		return nil, err
 	}
 	// Allocate a new VPC Cloud object and save it if successful
-	cloudVpc, err = vpcctl.NewCloudVpc(c.KubeClient, options)
+	cloudVpc, err = vpcctl.NewCloudVpc(c.KubeClient, config)
 	if cloudVpc != nil {
 		c.Vpc = cloudVpc
 	}
 	return cloudVpc, err
 }
 
-// NewCloudVpcOptions - Create the CloudVpcOptions from the current Cloud object
-func (c *Cloud) NewCloudVpcOptions(enablePrivateEndpoint bool) (*vpcctl.CloudVpcOptions, error) {
+// NewConfigVpc - Create the ConfigVpc from the current Cloud object
+func (c *Cloud) NewConfigVpc(enablePrivateEndpoint bool) (*vpcctl.ConfigVpc, error) {
 	// Make sure Cloud config has been initialized
 	if c.Config == nil {
 		return nil, fmt.Errorf("Cloud config not initialized")
 	}
-	// Initialize options based on values in the cloud provider
-	options := &vpcctl.CloudVpcOptions{
+	// Initialize config based on values in the cloud provider
+	config := &vpcctl.ConfigVpc{
 		ClusterID:         c.Config.Prov.ClusterID,
 		EnablePrivate:     enablePrivateEndpoint,
 		ProviderType:      c.Config.Prov.ProviderType,
@@ -71,9 +71,9 @@ func (c *Cloud) NewCloudVpcOptions(enablePrivateEndpoint bool) (*vpcctl.CloudVpc
 		if err != nil {
 			return nil, fmt.Errorf("Failed to read credentials from %s: %v", c.Config.Prov.G2Credentials, err)
 		}
-		options.APIKey = strings.TrimSpace(string(apiKey))
+		config.APIKeySecret = strings.TrimSpace(string(apiKey))
 	}
-	return options, nil
+	return config, nil
 }
 
 // ReadCloudConfig - Read in the cloud configuration

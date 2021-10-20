@@ -23,38 +23,77 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/klog"
 	"github.com/IBM/go-sdk-core/v5/core"
+	"github.com/IBM/platform-services-go-sdk/resourcemanagerv2"
 	sdk "github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 // VpcSdkGen2 SDK methods
 type VpcSdkGen2 struct {
-	Client          *sdk.VpcV1
-	Config          *ConfigVpc
-	ResourceGroupID string
+	Client *sdk.VpcV1
+	Config *ConfigVpc
 }
 
 // NewVpcSdkGen2 - create new SDK client
 func NewVpcSdkGen2(c *ConfigVpc) (CloudVpcSdk, error) {
-	authenticator := &core.IamAuthenticator{ApiKey: c.APIKeySecret, URL: c.TokenExchangeURL}
+	authenticator := &core.IamAuthenticator{ApiKey: c.APIKeySecret, URL: c.tokenExchangeURL}
 	client, err := sdk.NewVpcV1(&sdk.VpcV1Options{
 		Authenticator: authenticator,
-		URL:           c.EndpointURL})
+		URL:           c.endpointURL})
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create SDK client: %v", err)
+	}
+	// Convert the resource group name to an ID
+	if c.resourceGroupID == "" && c.ResourceGroupName != "" {
+		err = convertResourceGroupNameToID(c)
+		if err != nil {
+			return nil, err
+		}
 	}
 	// Default VPC timeout is 30 seconds.  This is not long enough for some operations.
 	// Change the default timeout for all VPC REST calls to be 90 seconds.
 	client.Service.Client.Timeout = time.Second * 90
 	v := &VpcSdkGen2{
-		Client:          client,
-		Config:          c,
-		ResourceGroupID: c.ResourceGroupID,
+		Client: client,
+		Config: c,
 	}
 	return v, nil
+}
+
+// convertResourceGroupNameToID - convert the resource group name into an ID
+func convertResourceGroupNameToID(c *ConfigVpc) error {
+	// Determine if URL for the resource manager
+	url := resourcemanagerv2.DefaultServiceURL
+	if strings.Contains(c.endpointURL, "iaasdev.cloud.ibm.com") {
+		url = "https://resource-controller.test.cloud.ibm.com/v2"
+	}
+	// Create resource manager client
+	authenticator := &core.IamAuthenticator{ApiKey: c.APIKeySecret, URL: c.tokenExchangeURL}
+	client, err := resourcemanagerv2.NewResourceManagerV2(&resourcemanagerv2.ResourceManagerV2Options{URL: url, Authenticator: authenticator})
+	if err != nil {
+		return fmt.Errorf("Failed to create resource manager v2 client: %v", err)
+	}
+	// Retrieve the resource group
+	listOptions := &resourcemanagerv2.ListResourceGroupsOptions{Name: &c.ResourceGroupName}
+	list, response, err := client.ListResourceGroups(listOptions)
+	if err != nil {
+		if response != nil {
+			klog.Infof("Response (%d): %+v", response.StatusCode, response.Result)
+		}
+		return fmt.Errorf("Failed to ListResourceGroups: %v", err)
+	}
+	if len(list.Resources) != 1 {
+		return fmt.Errorf("%d resource groups match name: %s", len(list.Resources), c.ResourceGroupName)
+	}
+	resourceGroup := list.Resources[0]
+	if resourceGroup.ID != nil {
+		c.resourceGroupID = *resourceGroup.ID
+	}
+	return nil
 }
 
 // CreateLoadBalancer - create a load balancer
@@ -97,7 +136,7 @@ func (v *VpcSdkGen2) CreateLoadBalancer(lbName string, public bool, nodeList, po
 		Listeners:     listeners,
 		Name:          core.StringPtr(lbName),
 		Pools:         pools,
-		ResourceGroup: &sdk.ResourceGroupIdentity{ID: core.StringPtr(v.ResourceGroupID)},
+		ResourceGroup: &sdk.ResourceGroupIdentity{ID: core.StringPtr(v.Config.resourceGroupID)},
 	}
 
 	// Create the VPC LB
