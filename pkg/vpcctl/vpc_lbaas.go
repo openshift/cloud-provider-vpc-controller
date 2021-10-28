@@ -20,7 +20,6 @@
 package vpcctl
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -486,75 +485,6 @@ func (c *CloudVpc) GetLoadBalancerStatus(service *v1.Service, hostname string) *
 	lbStatus := &v1.LoadBalancerStatus{}
 	lbStatus.Ingress = []v1.LoadBalancerIngress{{Hostname: hostname}}
 	return lbStatus
-}
-
-// MonitorLoadBalancers - returns status of all VPC load balancers associated with Kube LBs in this cluster
-func (c *CloudVpc) MonitorLoadBalancers(services *v1.ServiceList) (map[string]*v1.Service, map[string]*VpcLoadBalancer, error) {
-	// Verify we were passed a list of Kube services
-	if services == nil {
-		klog.Errorf("Required argument is missing")
-		return nil, nil, errors.New("Required argument is missing")
-	}
-	// Retrieve list of all load balancers
-	lbs, err := c.Sdk.ListLoadBalancers()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Create map of VPC LBs.  Do not include LBs that are in different cluster
-	vpcMap := map[string]*VpcLoadBalancer{}
-	lbPrefix := VpcLbNamePrefix + "-" + c.Config.ClusterID + "-"
-	for _, lb := range lbs {
-		if strings.HasPrefix(lb.Name, lbPrefix) {
-			lbPtr := lb
-			vpcMap[lb.Name] = lbPtr
-		}
-	}
-
-	// Create map of Kube node port and LB services
-	lbMap := map[string]*v1.Service{}
-	npMap := map[string]*v1.Service{}
-	for _, service := range services.Items {
-		// Keep track of all load balancer -AND- node port services.
-		//
-		// The cloud provider will only ever create VPC LB for a Load Balancer service,
-		// but the vpcctl binary can create a VPC LB for a Node Port service.  This allows testing
-		// of create/delete VPC LB functionality outside of the cloud provider.
-		//
-		// This means that it is possible to have VPC LB point to either a Kube LB or Kube node port
-		kubeService := service
-		switch kubeService.Spec.Type {
-		case v1.ServiceTypeLoadBalancer:
-			lbName := c.GenerateLoadBalancerName(&kubeService)
-			lbMap[lbName] = &kubeService
-		case v1.ServiceTypeNodePort:
-			lbName := c.GenerateLoadBalancerName(&kubeService)
-			npMap[lbName] = &kubeService
-		}
-	}
-
-	// Clean up any VPC LBs that are in READY state that do not have Kube LB or node port service
-	for _, lb := range vpcMap {
-		if !lb.IsReady() {
-			continue
-		}
-		// If we have a VPC LB and there is no Kube LB or node port service associated with it,
-		// go ahead and schedule the deletion of the VPC LB. The fact that we are deleting the
-		// VPC LB will be displayed as an "INFO:"" statement in the vpcctl stdout and will be added
-		// to the cloud provider controller manager log. Since there is no "ServiceUID:" on this
-		// "INFO:" statement, it will just be logged.
-		if lbMap[lb.Name] == nil && npMap[lb.Name] == nil {
-			klog.Infof("Deleting stale VPC LB: %s", lb.GetSummary())
-			err := c.DeleteLoadBalancer(lb, nil)
-			if err != nil {
-				// Add an error message to log, but don't fail the entire MONITOR operation
-				klog.Errorf("Failed to delete stale VPC LB: %s", lb.Name)
-			}
-		}
-	}
-
-	// Return the LB and VPC maps to the caller
-	return lbMap, vpcMap, nil
 }
 
 // replaceLoadBalancerPoolMembers - replace the load balancer pool members

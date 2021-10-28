@@ -223,7 +223,7 @@ func MonitorLoadBalancers() error {
 	}
 
 	// Call the MonitorLoadBalancers function to get status of all VPC LBs
-	lbMap, vpcMap, err := c.MonitorLoadBalancers(services)
+	lbMap, vpcMap, err := c.VpcMonitorLoadBalancers(services)
 	if err != nil {
 		klog.Errorf("MonitorLoadBalancers failed: %v\n", err)
 		return err

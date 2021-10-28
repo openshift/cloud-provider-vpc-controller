@@ -20,7 +20,11 @@
 package ibm
 
 import (
+	"fmt"
+	"os"
+
 	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
+	"gopkg.in/gcfg.v1"
 	clientset "k8s.io/client-go/kubernetes"
 )
 
@@ -54,5 +58,36 @@ type CloudConfig struct {
 type Cloud struct {
 	KubeClient clientset.Interface
 	Config     *CloudConfig
+	Recorder   *CloudEventRecorder
 	Vpc        *vpcctl.CloudVpc
 }
+
+// ReadCloudConfig - Read in the cloud configuration
+func (c *Cloud) ReadCloudConfig(configFile string) (*CloudConfig, error) {
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		return nil, fmt.Errorf("missing file: %s", configFile)
+	}
+	var config CloudConfig
+	err := gcfg.FatalOnly(gcfg.ReadFileInto(&config, configFile))
+	if err != nil {
+		return nil, fmt.Errorf("fatal error occurred processing file: %s", configFile)
+	}
+	return &config, nil
+}
+
+// SetInformers initializes any informers when the cloud provider starts
+// func (c *Cloud) SetInformers(informerFactory informers.SharedInformerFactory) {
+// 	klog.Infof("Initializing Informers")
+// 	endpointInformer := informerFactory.Core().V1().Endpoints().Informer()
+// 	endpointInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+// 		UpdateFunc: c.handleEndpointUpdate,
+// 	})
+// 	if c.isProviderVpc() {
+// 		secretInformer := informerFactory.Core().V1().Secrets().Informer()
+// 		secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+// 			AddFunc:    c.VpcHandleSecretAdd,
+// 			DeleteFunc: c.VpcHandleSecretDelete,
+// 			UpdateFunc: c.VpcHandleSecretUpdate,
+// 		})
+// 	}
+// }

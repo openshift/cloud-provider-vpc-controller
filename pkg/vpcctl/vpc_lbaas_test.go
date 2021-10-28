@@ -173,45 +173,6 @@ func TestCloudVpc_GetLoadBalancerStatus(t *testing.T) {
 	assert.Equal(t, status.Ingress[0].IP, "")
 }
 
-func TestCloudVpc_MonitorLoadBalancers(t *testing.T) {
-	s, _ := NewVpcSdkFake()
-	c := &CloudVpc{Config: &ConfigVpc{ClusterID: "clusterID"}, Sdk: s}
-	serviceNodePort := v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: "nodePort", Namespace: "default", UID: "NodePort"},
-		Spec:       v1.ServiceSpec{Type: v1.ServiceTypeNodePort}}
-	serviceNotFound := v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: "notFound", Namespace: "default", UID: "NotFound"},
-		Spec:       v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
-	serviceNotReady := v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: "notReady", Namespace: "default", UID: "NotReady"},
-		Spec:       v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
-	serviceList := &v1.ServiceList{Items: []v1.Service{serviceNodePort, serviceNotFound, serviceNotReady}}
-
-	// MonitorLoadBalancers failed, Kube services not specified
-	lbMap, vpcMap, err := c.MonitorLoadBalancers(nil)
-	assert.Nil(t, lbMap)
-	assert.Nil(t, vpcMap)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Required argument is missing")
-
-	// MonitorLoadBalancers failed, SDK List LB failed
-	c.SetFakeSdkError("ListLoadBalancers")
-	lbMap, vpcMap, err = c.MonitorLoadBalancers(serviceList)
-	assert.Nil(t, lbMap)
-	assert.Nil(t, vpcMap)
-	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "ListLoadBalancers failed")
-	c.ClearFakeSdkError("ListLoadBalancers")
-
-	// MonitorLoadBalancers success
-	lbMap, vpcMap, err = c.MonitorLoadBalancers(serviceList)
-	assert.NotNil(t, lbMap)
-	assert.NotNil(t, vpcMap)
-	assert.Nil(t, err)
-	assert.Equal(t, len(lbMap), 2)
-	assert.Equal(t, len(vpcMap), 2)
-}
-
 func TestCloudVpc_UpdateLoadBalancer(t *testing.T) {
 	node := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.1.1", Labels: map[string]string{nodeLabelZone: "zoneA"}}, Status: v1.NodeStatus{Addresses: []v1.NodeAddress{{Address: "192.168.1.1", Type: v1.NodeInternalIP}}}}
 	node2 := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.2.2"}, Status: v1.NodeStatus{Addresses: []v1.NodeAddress{{Address: "192.168.2.2", Type: v1.NodeInternalIP}}}}
