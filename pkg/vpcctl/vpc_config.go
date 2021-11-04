@@ -33,10 +33,10 @@ const (
 	defaultPoolMemberQuota = 50
 
 	// IAM Token Exchange URLs
-	iamPrivateTokenExchangeURL         = "https://private.iam.cloud.ibm.com"      /* #nosec */
-	iamPublicTokenExchangeURL          = "https://iam.cloud.ibm.com"              /* #nosec */
-	iamStagePrivateTokenExchangeURL    = "https://private.iam.test.cloud.ibm.com" /* #nosec */
-	iamStageTestPublicTokenExchangeURL = "https://iam.stage1.bluemix.net"         /* #nosec */
+	iamPrivateTokenExchangeURL         = "https://private.iam.cloud.ibm.com"      // #nosec G101 IBM Cloud iam prod private URL
+	iamPublicTokenExchangeURL          = "https://iam.cloud.ibm.com"              // #nosec G101 IBM Cloud iam prod public URL
+	iamStagePrivateTokenExchangeURL    = "https://private.iam.test.cloud.ibm.com" // #nosec G101 IBM Cloud iam stage private URL
+	iamStageTestPublicTokenExchangeURL = "https://iam.stage1.bluemix.net"         // #nosec G101 IBM Cloud iam stage public URL
 
 	nodeLabelDedicated  = "dedicated"
 	nodeLabelInternalIP = "ibm-cloud.kubernetes.io/internal-ip"

@@ -62,7 +62,7 @@ func main() {
 	if len(os.Args) > 3 {
 		arg2 = os.Args[3]
 	}
-	_ = runCmd(cmd, arg1, arg2)
+	_ = runCmd(cmd, arg1, arg2) // #nosec G104 error is handled by the internal logic before returning
 }
 
 // Run the requested command with the specified args

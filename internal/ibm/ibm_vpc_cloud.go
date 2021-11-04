@@ -248,7 +248,8 @@ func (c *Cloud) VpcMonitorLoadBalancers(services *v1.ServiceList, status map[str
 			klog.Infof("VPC load balance not online/active: ServiceID:%s Service:%s/%s %s",
 				string(service.ObjectMeta.UID), service.ObjectMeta.Namespace, service.ObjectMeta.Name, vpcLB.GetSummary())
 			if oldStatus == newStatus {
-				_ = c.Recorder.VpcLoadBalancerServiceWarningEvent(service, VerifyingCloudLoadBalancerFailed, lbName, c.vpcGetEventMessage(newStatus))
+				_ = c.Recorder.VpcLoadBalancerServiceWarningEvent(
+					service, VerifyingCloudLoadBalancerFailed, lbName, c.vpcGetEventMessage(newStatus)) // #nosec G104 error is always returned
 			}
 
 			// Move on to the next LB service
@@ -260,7 +261,8 @@ func (c *Cloud) VpcMonitorLoadBalancers(services *v1.ServiceList, status map[str
 		newStatus := vpcLbStatusOfflineNotFound
 		status[serviceID] = newStatus
 		if oldStatus == newStatus {
-			_ = c.Recorder.VpcLoadBalancerServiceWarningEvent(service, VerifyingCloudLoadBalancerFailed, lbName, c.vpcGetEventMessage(newStatus))
+			_ = c.Recorder.VpcLoadBalancerServiceWarningEvent(
+				service, VerifyingCloudLoadBalancerFailed, lbName, c.vpcGetEventMessage(newStatus)) // #nosec G104 error is always returned
 		}
 	}
 }

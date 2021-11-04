@@ -71,7 +71,10 @@ func getKubectl() (kubernetes.Interface, error) {
 	// Create the client config
 	kubeConfig := os.Getenv(envVarKubeConfig)
 	if kubeConfig == "" {
-		homeDir, _ := os.UserHomeDir()
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, err
+		}
 		defaultKubeConfig := filepath.Join(homeDir, ".kube", "config")
 		if _, err = os.Stat(defaultKubeConfig); err == nil {
 			kubeConfig = defaultKubeConfig
