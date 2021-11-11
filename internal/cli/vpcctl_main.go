@@ -22,10 +22,11 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"cloud.ibm.com/cloud-provider-vpc-controller/internal/ibm"
 	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/klog"
-	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpclb"
+	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
 )
 
 // Initialize logging to go to stdout
@@ -170,12 +171,6 @@ func DeleteLoadBalancer(lbName string) error {
 	// Return basic stats about the load balancer for the cloud provider to log
 	klog.Infof(lb.GetSummary())
 
-	// Check the state of the load balancer to determine if the delete operation can even be attempted
-	if !lb.IsReady() {
-		klog.Pending(lb.GetStatus())
-		return nil
-	}
-
 	// Attempt to delete the load balancer.
 	err = c.DeleteLoadBalancer(lb, nil)
 	if err != nil {
@@ -189,17 +184,25 @@ func DeleteLoadBalancer(lbName string) error {
 }
 
 // GetCloudProviderVpc - Retrieve cloud provider CloudVpc object
-func GetCloudProviderVpc() (*vpclb.CloudVpc, error) {
-	client, clusterID, err := cloudInit()
+func GetCloudProviderVpc() (*vpcctl.CloudVpc, error) {
+	client, err := cloudInit()
 	if err != nil {
 		return nil, err
 	}
-	cloud := ibm.Cloud{KubeClient: client, Config: &ibm.CloudConfig{Prov: ibm.Provider{ClusterID: clusterID}}}
-	err = cloud.InitCloudVpc(shouldPrivateEndpointBeEnabled())
+	configPath, _ := os.LookupEnv(envVarCloudConfigPath)
+	if configPath == "" {
+		configPath = defaultCloudConfPath
+	}
+	cloud := ibm.Cloud{KubeClient: client}
+	cloud.Config, err = cloud.ReadCloudConfig(configPath)
 	if err != nil {
 		return nil, err
 	}
-	return cloud.Vpc, nil
+	vpc, err := cloud.InitCloudVpc(shouldPrivateEndpointBeEnabled())
+	if err != nil {
+		return nil, err
+	}
+	return vpc, nil
 }
 
 // MonitorLoadBalancers method gets called by the cloud provider monitorVpcLoadBalancers method.
@@ -220,7 +223,7 @@ func MonitorLoadBalancers() error {
 	}
 
 	// Call the MonitorLoadBalancers function to get status of all VPC LBs
-	lbMap, vpcMap, err := c.MonitorLoadBalancers(services)
+	lbMap, vpcMap, err := c.VpcMonitorLoadBalancers(services)
 	if err != nil {
 		klog.Errorf("MonitorLoadBalancers failed: %v\n", err)
 		return err
