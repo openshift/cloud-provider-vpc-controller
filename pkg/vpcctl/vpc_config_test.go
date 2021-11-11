@@ -98,6 +98,7 @@ func TestConfigVpc_getVpcEndpoint(t *testing.T) {
 
 func TestConfigVpc_initialize(t *testing.T) {
 	config := &ConfigVpc{
+		AccountID:         "accountID",
 		APIKeySecret:      "apiKey",
 		ClusterID:         "clusterID",
 		EnablePrivate:     false,
@@ -129,6 +130,7 @@ func TestConfigVpc_initialize(t *testing.T) {
 
 func TestConfigVpc_validate(t *testing.T) {
 	config := &ConfigVpc{
+		AccountID:         "accountID",
 		APIKeySecret:      "apiKey",
 		ClusterID:         "clusterID",
 		EnablePrivate:     false,
@@ -142,6 +144,13 @@ func TestConfigVpc_validate(t *testing.T) {
 	// Verify valid config returns no error
 	err := config.validate()
 	assert.Nil(t, err)
+
+	// AccountID not set
+	config.AccountID = ""
+	err = config.validate()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Missing required cloud configuration setting")
+	config.AccountID = "accountID"
 
 	// APIKeySecret not set
 	config.APIKeySecret = ""

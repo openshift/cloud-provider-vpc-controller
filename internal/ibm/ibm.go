@@ -34,6 +34,8 @@ type Provider struct {
 	Region string `gcfg:"region"`
 	// Optional: Instance Type of the node. Only set in worker.
 	ClusterID string `gcfg:"clusterID"`
+	// Required: Account ID that owns the cluster.
+	AccountID string `gcfg:"accountID"`
 	// Optional: Account ID of the master. Only set in controller manager.
 	ProviderType string `gcfg:"cluster-default-provider"`
 	// Optional: File containing VPC Gen2 credentials

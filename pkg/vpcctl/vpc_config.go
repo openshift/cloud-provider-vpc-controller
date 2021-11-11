@@ -87,6 +87,7 @@ var VpcLbNamePrefix = "kube"
 // ConfigVpc is the VPC configuration information
 type ConfigVpc struct {
 	// Externalized config settings from caller
+	AccountID         string
 	APIKeySecret      string
 	ClusterID         string
 	EnablePrivate     bool
@@ -165,6 +166,8 @@ func (c *ConfigVpc) validate() error {
 		return nil
 	case c.ProviderType != VpcProviderTypeGen2:
 		return fmt.Errorf("Invalid cloud configuration setting for cluster-default-provider: %s", c.ProviderType)
+	case c.AccountID == "":
+		return fmt.Errorf("Missing required cloud configuration setting: accountID")
 	case c.APIKeySecret == "":
 		return fmt.Errorf("Missing required cloud configuration setting: g2Credentials")
 	case c.Region == "":

@@ -43,6 +43,7 @@ func TestCloud_ReadCloudConfig(t *testing.T) {
 	config, err = c.ReadCloudConfig("../../test-fixtures/cloud-conf-g2.ini")
 	assert.NotNil(t, config)
 	assert.Nil(t, err)
+	assert.Equal(t, config.Prov.AccountID, "accountID")
 	assert.Equal(t, config.Prov.ClusterID, "clusterID")
 	assert.Equal(t, config.Prov.ProviderType, "g2")
 	assert.Equal(t, config.Prov.Region, "us-south")
