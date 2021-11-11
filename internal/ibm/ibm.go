@@ -20,25 +20,74 @@
 package ibm
 
 import (
-	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpclb"
+	"fmt"
+	"os"
+
+	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
+	"gopkg.in/gcfg.v1"
 	clientset "k8s.io/client-go/kubernetes"
 )
 
 // Provider holds information from the cloud provider node (i.e. instance).
 type Provider struct {
-	// Optional: Cluster ID of the master. Only set in controller manager.
-	ClusterID string
+	// Optional: Region of the node. Only set in worker.
+	Region string `gcfg:"region"`
+	// Optional: Instance Type of the node. Only set in worker.
+	ClusterID string `gcfg:"clusterID"`
+	// Optional: Account ID of the master. Only set in controller manager.
+	ProviderType string `gcfg:"cluster-default-provider"`
+	// Optional: File containing VPC Gen2 credentials
+	G2Credentials string `gcfg:"g2Credentials"`
+	// Optional: File containing VPC Gen2 credentials
+	G2ResourceGroupName string `gcfg:"g2ResourceGroupName"`
+	// Optional: File containing VPC Gen2 credentials
+	G2VpcSubnetNames string `gcfg:"g2VpcSubnetNames"`
+	// Optional: Service account ID used to allocate worker nodes in VPC Gen2 environment
+	G2WorkerServiceAccountID string `gcfg:"g2workerServiceAccountID"`
+	// Optional: VPC Gen2 name
+	G2VpcName string `gcfg:"g2VpcName"`
 }
 
 // CloudConfig is the ibm cloud provider config data.
 type CloudConfig struct {
 	// [provider] section
-	Prov Provider
+	Prov Provider `gcfg:"provider"`
 }
 
 // Cloud is the ibm cloud provider implementation.
 type Cloud struct {
 	KubeClient clientset.Interface
 	Config     *CloudConfig
-	Vpc        *vpclb.CloudVpc
+	Recorder   *CloudEventRecorder
+	Vpc        *vpcctl.CloudVpc
 }
+
+// ReadCloudConfig - Read in the cloud configuration
+func (c *Cloud) ReadCloudConfig(configFile string) (*CloudConfig, error) {
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		return nil, fmt.Errorf("missing file: %s", configFile)
+	}
+	var config CloudConfig
+	err := gcfg.FatalOnly(gcfg.ReadFileInto(&config, configFile))
+	if err != nil {
+		return nil, fmt.Errorf("fatal error occurred processing file: %s", configFile)
+	}
+	return &config, nil
+}
+
+// SetInformers initializes any informers when the cloud provider starts
+// func (c *Cloud) SetInformers(informerFactory informers.SharedInformerFactory) {
+// 	klog.Infof("Initializing Informers")
+// 	endpointInformer := informerFactory.Core().V1().Endpoints().Informer()
+// 	endpointInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+// 		UpdateFunc: c.handleEndpointUpdate,
+// 	})
+// 	if c.isProviderVpc() {
+// 		secretInformer := informerFactory.Core().V1().Secrets().Informer()
+// 		secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+// 			AddFunc:    c.VpcHandleSecretAdd,
+// 			DeleteFunc: c.VpcHandleSecretDelete,
+// 			UpdateFunc: c.VpcHandleSecretUpdate,
+// 		})
+// 	}
+// }

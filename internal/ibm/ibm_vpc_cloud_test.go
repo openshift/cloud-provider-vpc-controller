@@ -20,102 +20,317 @@
 package ibm
 
 import (
-	"reflect"
+	"context"
 	"testing"
 
-	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpclb"
+	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
 const (
-	cluster = "bqcssbbd0bsui62odcdg"
+	cluster     = "clusterID"
+	clusterName = "clusterName"
 )
 
-func getSecretNotFound() kubernetes.Interface {
-	return fake.NewSimpleClientset()
-}
-func getSecretData(secretData string) kubernetes.Interface {
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: vpclb.VpcSecretFileName, Namespace: vpclb.VpcSecretNamespace},
-		Data:       map[string][]byte{vpclb.VpcClientDataKey: []byte(secretData)},
-	}
-	return fake.NewSimpleClientset(secret)
-}
-
-var gen2Data = `[VPC]
-   g2_riaas_endpoint_url = "https://us-south.iaas.cloud.ibm.com:443"
-   g2_riaas_endpoint_private_url = "https://private-us-south.iaas.cloud.ibm.com:443"
-   g2_resource_group_id = "resourceGroup"
-   g2_api_key = "foobar"
-   provider_type = "g2"`
-var gen2CloudVpc = &vpclb.CloudVpc{
-	Config: vpclb.ConfigVpc{
-		APIKeySecret:     "foobar",
-		ClusterID:        cluster,
-		EnablePrivate:    true,
-		EndpointURL:      "https://private-us-south.iaas.cloud.ibm.com:443/v1",
-		ProviderType:     "g2",
-		ResourceGroupID:  "resourceGroup",
-		TokenExchangeURL: "https://private.iam.cloud.ibm.com/identity/token",
-	}}
-
-func TestNewCloudVpc(t *testing.T) {
-	type args struct {
-		kubeClient            kubernetes.Interface
-		clusterID             string
-		enablePrivateEndpoint bool
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *vpclb.CloudVpc
-		wantErr bool
-	}{
-		{
-			name: "No secret",
-			args: args{kubeClient: getSecretNotFound(), clusterID: cluster, enablePrivateEndpoint: false},
-			want: nil, wantErr: true,
-		},
-		{
-			name: "No [VPC] data in the secret",
-			args: args{kubeClient: getSecretData("Secret Data"), clusterID: cluster, enablePrivateEndpoint: false},
-			want: nil, wantErr: true,
-		},
-		{
-			name: "No API Key in the secret",
-			args: args{kubeClient: getSecretData("[VPC]"), clusterID: cluster, enablePrivateEndpoint: false},
-			want: nil, wantErr: true,
-		},
-		{
-			name: "Valid Gen2 secret - private service endpoint",
-			args: args{kubeClient: getSecretData(gen2Data), clusterID: cluster, enablePrivateEndpoint: true},
-			want: gen2CloudVpc, wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewCloudVpc(tt.args.kubeClient, tt.args.clusterID, tt.args.enablePrivateEndpoint)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewCloudVpc() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			// if got != nil && tt.want != nil && !equalCloudVpc(got, tt.want) {
-			if got != nil && tt.want != nil && !reflect.DeepEqual(got.Config, tt.want.Config) {
-				t.Errorf("NewCloudVpc()\ngot = %+v\nwant = %+v", got.Config, tt.want.Config)
-			}
-		})
-	}
-}
-
 func TestCloud_InitCloudVpc(t *testing.T) {
-	c := Cloud{Config: &CloudConfig{Prov: Provider{ClusterID: cluster}}, KubeClient: getSecretNotFound()}
-	err := c.InitCloudVpc(true)
+	c := Cloud{Config: &CloudConfig{Prov: Provider{ClusterID: cluster}}, KubeClient: fake.NewSimpleClientset()}
+	v, err := c.InitCloudVpc(true)
+	assert.Nil(t, v)
 	assert.NotNil(t, err)
-	c.KubeClient = getSecretData(gen2Data)
-	err = c.InitCloudVpc(true)
+}
+
+func TestCloud_isProviderVpc(t *testing.T) {
+	c := Cloud{Config: &CloudConfig{Prov: Provider{ClusterID: cluster}}}
+	result := c.isProviderVpc()
+	assert.False(t, result)
+	c.Config.Prov.ProviderType = vpcctl.VpcProviderTypeGen2
+	result = c.isProviderVpc()
+	assert.True(t, result)
+}
+
+func TestCloud_NewConfigVpc(t *testing.T) {
+	// Test for the case of cloud config not initialized
+	c := Cloud{}
+	config, err := c.NewConfigVpc(true)
+	assert.Nil(t, config)
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), "Cloud config not initialized")
+
+	// Test failure to read credentials from file
+	c.Config = &CloudConfig{Prov: Provider{
+		Region:                   "us-south",
+		ClusterID:                "clusterID",
+		ProviderType:             "g2",
+		G2Credentials:            "../../test-fixtures/missing-file.txt",
+		G2ResourceGroupName:      "Default",
+		G2VpcSubnetNames:         "subnet1,subnet2,subnet3",
+		G2WorkerServiceAccountID: "accountID",
+		G2VpcName:                "vpc",
+	}}
+	config, err = c.NewConfigVpc(true)
+	assert.Nil(t, config)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed to read credentials")
+
+	// Successfully return ConfigVpc
+	c.Config.Prov.G2Credentials = "../../test-fixtures/creds.txt"
+	config, err = c.NewConfigVpc(true)
+	assert.NotNil(t, config)
+	assert.Nil(t, err)
+	assert.Equal(t, config.APIKeySecret, "apiKey-1234")
+	assert.Equal(t, config.ClusterID, "clusterID")
+	assert.Equal(t, config.EnablePrivate, true)
+	assert.Equal(t, config.ProviderType, "g2")
+	assert.Equal(t, config.Region, "us-south")
+	assert.Equal(t, config.ResourceGroupName, "Default")
+	assert.Equal(t, config.SubnetNames, "subnet1,subnet2,subnet3")
+	assert.Equal(t, config.WorkerAccountID, "accountID")
+	assert.Equal(t, config.VpcName, "vpc")
+}
+
+func TestCloud_VpcEnsureLoadBalancer(t *testing.T) {
+	s, _ := vpcctl.NewVpcSdkFake()
+	c := &vpcctl.CloudVpc{
+		KubeClient: fake.NewSimpleClientset(),
+		Config:     &vpcctl.ConfigVpc{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeFake},
+		Sdk:        s}
+	cloud := Cloud{
+		KubeClient: fake.NewSimpleClientset(),
+		Config:     &CloudConfig{Prov: Provider{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeGen2}},
+		Recorder:   NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
+		Vpc:        c,
+	}
+	node := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.0.1", Labels: map[string]string{}}}
+
+	// VpcEnsureLoadBalancer failed, failed to initialize VPC env
+	cloud.Vpc = nil
+	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	status, err := cloud.VpcEnsureLoadBalancer(context.Background(), clusterName, service, []*v1.Node{node})
+	assert.Nil(t, status)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed initializing VPC")
+	cloud.Vpc = c
+
+	// VpcEnsureLoadBalancer failed, failed to get create LB, no available nodes
+	cloud.Config.Prov.ProviderType = vpcctl.VpcProviderTypeFake
+	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "NotFound"}}
+	status, err = cloud.VpcEnsureLoadBalancer(context.Background(), clusterName, service, []*v1.Node{})
+	assert.Nil(t, status)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed ensuring LoadBalancer")
+
+	// VpcEnsureLoadBalancer successful, existing LB was updated
+	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	status, err = cloud.VpcEnsureLoadBalancer(context.Background(), clusterName, service, []*v1.Node{node})
+	assert.NotNil(t, status)
+	assert.Nil(t, err)
+	assert.Equal(t, status.Ingress[0].Hostname, "lb.ibm.com")
+}
+
+func TestCloud_VpcEnsureLoadBalancerDeleted(t *testing.T) {
+	s, _ := vpcctl.NewVpcSdkFake()
+	c := &vpcctl.CloudVpc{Sdk: s}
+	cloud := Cloud{
+		KubeClient: fake.NewSimpleClientset(),
+		Config:     &CloudConfig{Prov: Provider{ClusterID: "clusterID"}},
+		Recorder:   NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
+		Vpc:        c,
+	}
+
+	// VpcEnsureLoadBalancerDeleted failed, failed to initialize VPC env
+	cloud.Vpc = nil
+	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	err := cloud.VpcEnsureLoadBalancerDeleted(context.Background(), clusterName, service)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed initializing VPC")
+	cloud.Vpc = c
+
+	// VpcEnsureLoadBalancerDeleted failed, failed to delete the LB
+	c.SetFakeSdkError("DeleteLoadBalancer")
+	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	err = cloud.VpcEnsureLoadBalancerDeleted(context.Background(), clusterName, service)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed deleting LoadBalancer")
+	c.ClearFakeSdkError("DeleteLoadBalancer")
+
+	// VpcEnsureLoadBalancerDeleted successful, existing LB was deleted
+	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	err = cloud.VpcEnsureLoadBalancerDeleted(context.Background(), clusterName, service)
+	assert.Nil(t, err)
+}
+
+func TestCloud_VpcGetLoadBalancer(t *testing.T) {
+	s, _ := vpcctl.NewVpcSdkFake()
+	c := &vpcctl.CloudVpc{Sdk: s}
+	cloud := Cloud{
+		Config:   &CloudConfig{Prov: Provider{ClusterID: "clusterID"}},
+		Recorder: NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
+		Vpc:      c,
+	}
+
+	// VpcGetLoadBalancer failed, failed to initialize VPC env
+	cloud.KubeClient = fake.NewSimpleClientset()
+	cloud.Vpc = nil
+	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	status, exist, err := cloud.VpcGetLoadBalancer(context.Background(), clusterName, service)
+	assert.Nil(t, status)
+	assert.False(t, exist)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed initializing VPC")
+	cloud.Vpc = c
+
+	// VpcGetLoadBalancer failed, failed to get find the LB
+	c.SetFakeSdkError("FindLoadBalancer")
+	c.SetFakeSdkError("ListLoadBalancers")
+	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	status, exist, err = cloud.VpcGetLoadBalancer(context.Background(), clusterName, service)
+	assert.Nil(t, status)
+	assert.False(t, exist)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed getting LoadBalancer")
+	c.ClearFakeSdkError("FindLoadBalancer")
+	c.ClearFakeSdkError("ListLoadBalancers")
+
+	// VpcGetLoadBalancer successful, LB is ready
+	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	status, exist, err = cloud.VpcGetLoadBalancer(context.Background(), clusterName, service)
+	assert.NotNil(t, status)
+	assert.Equal(t, status.Ingress[0].Hostname, "lb.ibm.com")
+	assert.True(t, exist)
+	assert.Nil(t, err)
+}
+
+func TestCloud_VpcGetLoadBalancerName(t *testing.T) {
+	clusterID := "12345678901234567890"
+	c := Cloud{Config: &CloudConfig{Prov: Provider{ClusterID: clusterID}}}
+	kubeService := &v1.Service{ObjectMeta: metav1.ObjectMeta{
+		Name: "echo-server", Namespace: "default", UID: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"}}
+	lbName := vpcctl.VpcLbNamePrefix + "-" + clusterID + "-" + string(kubeService.UID)
+	lbName = lbName[:63]
+	result := c.vpcGetLoadBalancerName(kubeService)
+	assert.Equal(t, result, lbName)
+}
+
+func TestCloud_VpcHandleSecretAdd(t *testing.T) {
+	// VPC environment not initialized
+	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "my-secret", Namespace: "default"}}
+	c := Cloud{}
+	c.VpcHandleSecretAdd(secret)
+	assert.Nil(t, c.Vpc)
+	// VPC environment initialized, secret does not contain any VPC data
+	c.Vpc = &vpcctl.CloudVpc{}
+	c.VpcHandleSecretAdd(secret)
+	assert.NotNil(t, c.Vpc)
+}
+
+func TestCloud_VpcHandleSecretDelete(t *testing.T) {
+	// VPC environment not initialized
+	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "my-secret", Namespace: "default"}}
+	c := Cloud{}
+	c.VpcHandleSecretDelete(secret)
+	assert.Nil(t, c.Vpc)
+	// VPC environment initialized, secret does not contain any VPC data
+	c.Vpc = &vpcctl.CloudVpc{}
+	c.VpcHandleSecretDelete(secret)
+	assert.NotNil(t, c.Vpc)
+}
+
+func TestCloud_VpcHandleSecretUpdate(t *testing.T) {
+	// VPC environment not initialized
+	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "my-secret", Namespace: "default"}}
+	c := Cloud{}
+	c.VpcHandleSecretUpdate(nil, secret)
+	assert.Nil(t, c.Vpc)
+	// VPC environment initialized, secret does not contain any VPC data
+	c.Vpc = &vpcctl.CloudVpc{}
+	c.VpcHandleSecretUpdate(nil, secret)
+	assert.NotNil(t, c.Vpc)
+}
+
+func TestCloud_VpcMonitorLoadBalancers(t *testing.T) {
+	s, _ := vpcctl.NewVpcSdkFake()
+	c := &vpcctl.CloudVpc{
+		Sdk:    s,
+		Config: &vpcctl.ConfigVpc{ClusterID: "clusterID"},
+	}
+	cloud := Cloud{
+		Config:   &CloudConfig{Prov: Provider{ClusterID: "clusterID"}},
+		Recorder: NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
+		Vpc:      c,
+	}
+	serviceNodePort := v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "nodePort", Namespace: "default", UID: "NodePort"},
+		Spec: v1.ServiceSpec{Type: v1.ServiceTypeNodePort}}
+	serviceNotFound := v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "notFound", Namespace: "default", UID: "NotFound"},
+		Spec: v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
+	serviceNotReady := v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "notReady", Namespace: "default", UID: "NotReady"},
+		Spec: v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
+	serviceReady := v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "Ready", Namespace: "default", UID: "Ready"},
+		Spec: v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
+	serviceList := &v1.ServiceList{Items: []v1.Service{serviceNodePort}}
+	dataMap := map[string]string{}
+
+	// VpcUpdateLoadBalancer failed, failed to initialize VPC env
+	cloud.KubeClient = fake.NewSimpleClientset()
+	cloud.Vpc = nil
+	cloud.VpcMonitorLoadBalancers(serviceList, dataMap)
+	cloud.Vpc = c
+
+	// VpcUpdateLoadBalancer failed, service list was not passed in
+	cloud.VpcMonitorLoadBalancers(nil, dataMap)
+
+	// VpcUpdateLoadBalancer success, no existing data
+	serviceList = &v1.ServiceList{Items: []v1.Service{serviceNodePort, serviceNotFound, serviceNotReady}}
+	cloud.VpcMonitorLoadBalancers(serviceList, dataMap)
+	assert.Equal(t, len(dataMap), 2)
+	assert.Equal(t, dataMap["NotFound"], vpcLbStatusOfflineNotFound)
+	assert.Equal(t, dataMap["NotReady"], vpcLbStatusOfflineCreatePending)
+
+	// VpcUpdateLoadBalancer success, data updated based on current state
+	serviceList = &v1.ServiceList{Items: []v1.Service{serviceReady}}
+	dataMap = map[string]string{"Ready": vpcLbStatusOfflineCreatePending}
+	cloud.VpcMonitorLoadBalancers(serviceList, dataMap)
+	assert.Equal(t, len(dataMap), 1)
+	assert.Equal(t, dataMap["Ready"], vpcLbStatusOnlineActive)
+
+	// VpcUpdateLoadBalancer success, no change is status
+	serviceList = &v1.ServiceList{Items: []v1.Service{serviceNotReady, serviceNotFound}}
+	dataMap = map[string]string{"NotReady": vpcLbStatusOfflineCreatePending, "NotFound": vpcLbStatusOfflineNotFound}
+	cloud.VpcMonitorLoadBalancers(serviceList, dataMap)
+	assert.Equal(t, len(dataMap), 2)
+	assert.Equal(t, dataMap["NotReady"], vpcLbStatusOfflineCreatePending)
+	assert.Equal(t, dataMap["NotFound"], vpcLbStatusOfflineNotFound)
+}
+
+func TestCloud_VpcUpdateLoadBalancer(t *testing.T) {
+	s, _ := vpcctl.NewVpcSdkFake()
+	c := &vpcctl.CloudVpc{Sdk: s}
+	cloud := Cloud{
+		Config:   &CloudConfig{Prov: Provider{ClusterID: "clusterID"}},
+		Recorder: NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
+		Vpc:      c,
+	}
+	node := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.0.1", Labels: map[string]string{}}}
+
+	// VpcUpdateLoadBalancer failed, failed to initialize VPC env
+	cloud.KubeClient = fake.NewSimpleClientset()
+	cloud.Vpc = nil
+	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	err := cloud.VpcUpdateLoadBalancer(context.Background(), clusterName, service, []*v1.Node{node})
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed initializing VPC")
+	cloud.Vpc = c
+
+	// VpcUpdateLoadBalancer failed, failed to update LB, node list is empty
+	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	err = cloud.VpcUpdateLoadBalancer(context.Background(), clusterName, service, []*v1.Node{})
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed updating LoadBalancer")
+
+	// VpcUpdateLoadBalancer successful, existing LB was updated
+	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	err = cloud.VpcUpdateLoadBalancer(context.Background(), clusterName, service, []*v1.Node{node})
 	assert.Nil(t, err)
 }

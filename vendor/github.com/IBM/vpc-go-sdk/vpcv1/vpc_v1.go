@@ -1,5 +1,5 @@
 /**
- * (C) Copyright IBM Corp. 2021.
+ * (C) Copyright IBM Corp. 2020, 2021.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 
 /*
- * IBM OpenAPI SDK Code Generator Version: 3.38.0-07189efd-20210827-205025
+ * IBM OpenAPI SDK Code Generator Version: 3.39.0-748eb4ca-20210917-165907
  */
 
 // Package vpcv1 : Operations and models for the VpcV1 service
@@ -37,7 +37,7 @@ import (
 // VpcV1 : The IBM Cloud Virtual Private Cloud (VPC) API can be used to programmatically provision and manage
 // infrastructure resources, including virtual server instances, subnets, volumes, and load balancers.
 //
-// API Version: 2021-08-31
+// API Version: 2021-10-19
 type VpcV1 struct {
 	Service *core.BaseService
 
@@ -119,9 +119,11 @@ func NewVpcV1(options *VpcV1Options) (service *VpcV1, err error) {
 			return
 		}
 	}
+
 	if options.Version == nil {
-		options.Version = core.StringPtr("2021-08-31")
+		options.Version = core.StringPtr("2021-10-19")
 	}
+
 	service = &VpcV1{
 		Service:    baseService,
 		Version:    options.Version,
@@ -642,8 +644,9 @@ func (vpc *VpcV1) GetVPCDefaultRoutingTableWithContext(ctx context.Context, getV
 }
 
 // GetVPCDefaultSecurityGroup : Retrieve a VPC's default security group
-// This request retrieves the default security group for the VPC specified by the identifier in the URL. The default
-// security group is applied to any new network interfaces in the VPC that do not specify a security group.
+// This request retrieves the default security group for the VPC specified by the identifier in the URL. Resources that
+// optionally allow a security group to be specified upon creation will be attached to this security group if a security
+// group is not specified.
 func (vpc *VpcV1) GetVPCDefaultSecurityGroup(getVPCDefaultSecurityGroupOptions *GetVPCDefaultSecurityGroupOptions) (result *DefaultSecurityGroup, response *core.DetailedResponse, err error) {
 	return vpc.GetVPCDefaultSecurityGroupWithContext(context.Background(), getVPCDefaultSecurityGroupOptions)
 }
@@ -12805,7 +12808,8 @@ func (vpc *VpcV1) CreateIkePolicyWithContext(ctx context.Context, createIkePolic
 }
 
 // DeleteIkePolicy : Delete an IKE policy
-// This request deletes an IKE policy. This operation cannot be reversed.
+// This request deletes an IKE policy. This operation cannot be reversed. For this request to succeed, there must not be
+// any VPN gateway connections using this policy.
 func (vpc *VpcV1) DeleteIkePolicy(deleteIkePolicyOptions *DeleteIkePolicyOptions) (response *core.DetailedResponse, err error) {
 	return vpc.DeleteIkePolicyWithContext(context.Background(), deleteIkePolicyOptions)
 }
@@ -13196,7 +13200,8 @@ func (vpc *VpcV1) CreateIpsecPolicyWithContext(ctx context.Context, createIpsecP
 }
 
 // DeleteIpsecPolicy : Delete an IPsec policy
-// This request deletes an IPsec policy. This operation cannot be reversed.
+// This request deletes an IPsec policy. This operation cannot be reversed. For this request to succeed, there must not
+// be any VPN gateway connections using this policy.
 func (vpc *VpcV1) DeleteIpsecPolicy(deleteIpsecPolicyOptions *DeleteIpsecPolicyOptions) (response *core.DetailedResponse, err error) {
 	return vpc.DeleteIpsecPolicyWithContext(context.Background(), deleteIpsecPolicyOptions)
 }
@@ -13574,8 +13579,9 @@ func (vpc *VpcV1) CreateVPNGatewayWithContext(ctx context.Context, createVPNGate
 }
 
 // DeleteVPNGateway : Delete a VPN gateway
-// This request deletes a VPN gateway. A VPN gateway with a `status` of `pending` cannot be deleted. This operation
-// deletes all VPN gateway connections associated with this VPN gateway.  This operation cannot be reversed.
+// This request deletes a VPN gateway. This operation cannot be reversed. For this request to succeed, the VPN gateway
+// must not have a `status` of `pending`, and there must not be any VPC routes using the VPN gateway's connections as a
+// next hop.
 func (vpc *VpcV1) DeleteVPNGateway(deleteVPNGatewayOptions *DeleteVPNGatewayOptions) (response *core.DetailedResponse, err error) {
 	return vpc.DeleteVPNGatewayWithContext(context.Background(), deleteVPNGatewayOptions)
 }
@@ -13893,7 +13899,8 @@ func (vpc *VpcV1) CreateVPNGatewayConnectionWithContext(ctx context.Context, cre
 }
 
 // DeleteVPNGatewayConnection : Delete a VPN gateway connection
-// This request deletes a VPN gateway connection. This operation cannot be reversed.
+// This request deletes a VPN gateway connection. This operation cannot be reversed. For this request to succeed, there
+// must not be VPC routes using this VPN connection as a next hop.
 func (vpc *VpcV1) DeleteVPNGatewayConnection(deleteVPNGatewayConnectionOptions *DeleteVPNGatewayConnectionOptions) (response *core.DetailedResponse, err error) {
 	return vpc.DeleteVPNGatewayConnectionWithContext(context.Background(), deleteVPNGatewayConnectionOptions)
 }
@@ -14782,6 +14789,9 @@ func (vpc *VpcV1) CreateLoadBalancerWithContext(ctx context.Context, createLoadB
 	if createLoadBalancerOptions.ResourceGroup != nil {
 		body["resource_group"] = createLoadBalancerOptions.ResourceGroup
 	}
+	if createLoadBalancerOptions.RouteMode != nil {
+		body["route_mode"] = createLoadBalancerOptions.RouteMode
+	}
 	if createLoadBalancerOptions.SecurityGroups != nil {
 		body["security_groups"] = createLoadBalancerOptions.SecurityGroups
 	}
@@ -15164,9 +15174,6 @@ func (vpc *VpcV1) CreateLoadBalancerListenerWithContext(ctx context.Context, cre
 	builder.AddQuery("generation", fmt.Sprint(*vpc.generation))
 
 	body := make(map[string]interface{})
-	if createLoadBalancerListenerOptions.Port != nil {
-		body["port"] = createLoadBalancerListenerOptions.Port
-	}
 	if createLoadBalancerListenerOptions.Protocol != nil {
 		body["protocol"] = createLoadBalancerListenerOptions.Protocol
 	}
@@ -15187,6 +15194,15 @@ func (vpc *VpcV1) CreateLoadBalancerListenerWithContext(ctx context.Context, cre
 	}
 	if createLoadBalancerListenerOptions.Policies != nil {
 		body["policies"] = createLoadBalancerListenerOptions.Policies
+	}
+	if createLoadBalancerListenerOptions.Port != nil {
+		body["port"] = createLoadBalancerListenerOptions.Port
+	}
+	if createLoadBalancerListenerOptions.PortMax != nil {
+		body["port_max"] = createLoadBalancerListenerOptions.PortMax
+	}
+	if createLoadBalancerListenerOptions.PortMin != nil {
+		body["port_min"] = createLoadBalancerListenerOptions.PortMin
 	}
 	_, err = builder.SetBodyContentJSON(body)
 	if err != nil {
@@ -17590,8 +17606,9 @@ func (vpc *VpcV1) CreateFlowLogCollectorWithContext(ctx context.Context, createF
 }
 
 // DeleteFlowLogCollector : Delete a flow log collector
-// This request stops and deletes a flow log collector. Collected flow logs remain available within the flow log
-// collector's bucket.
+// This request stops and deletes a flow log collector. This operation cannot be reversed.
+//
+// Collected flow logs remain available within the flow log collector's Cloud Object Storage bucket.
 func (vpc *VpcV1) DeleteFlowLogCollector(deleteFlowLogCollectorOptions *DeleteFlowLogCollectorOptions) (response *core.DetailedResponse, err error) {
 	return vpc.DeleteFlowLogCollectorWithContext(context.Background(), deleteFlowLogCollectorOptions)
 }
@@ -17778,10 +17795,10 @@ func (vpc *VpcV1) UpdateFlowLogCollectorWithContext(ctx context.Context, updateF
 // AddEndpointGatewayIPOptions : The AddEndpointGatewayIP options.
 type AddEndpointGatewayIPOptions struct {
 	// The endpoint gateway identifier.
-	EndpointGatewayID *string `json:"-" validate:"required,ne="`
+	EndpointGatewayID *string `json:"endpoint_gateway_id" validate:"required,ne="`
 
 	// The reserved IP identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -17816,13 +17833,13 @@ func (options *AddEndpointGatewayIPOptions) SetHeaders(param map[string]string) 
 // AddInstanceNetworkInterfaceFloatingIPOptions : The AddInstanceNetworkInterfaceFloatingIP options.
 type AddInstanceNetworkInterfaceFloatingIPOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The network interface identifier.
-	NetworkInterfaceID *string `json:"-" validate:"required,ne="`
+	NetworkInterfaceID *string `json:"network_interface_id" validate:"required,ne="`
 
 	// The floating IP identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -17864,10 +17881,10 @@ func (options *AddInstanceNetworkInterfaceFloatingIPOptions) SetHeaders(param ma
 // AddSecurityGroupNetworkInterfaceOptions : The AddSecurityGroupNetworkInterface options.
 type AddSecurityGroupNetworkInterfaceOptions struct {
 	// The security group identifier.
-	SecurityGroupID *string `json:"-" validate:"required,ne="`
+	SecurityGroupID *string `json:"security_group_id" validate:"required,ne="`
 
 	// The network interface identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -17902,16 +17919,16 @@ func (options *AddSecurityGroupNetworkInterfaceOptions) SetHeaders(param map[str
 // AddVPNGatewayConnectionLocalCIDROptions : The AddVPNGatewayConnectionLocalCIDR options.
 type AddVPNGatewayConnectionLocalCIDROptions struct {
 	// The VPN gateway identifier.
-	VPNGatewayID *string `json:"-" validate:"required,ne="`
+	VPNGatewayID *string `json:"vpn_gateway_id" validate:"required,ne="`
 
 	// The VPN gateway connection identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The address prefix part of the CIDR.
-	CIDRPrefix *string `json:"-" validate:"required,ne="`
+	CIDRPrefix *string `json:"cidr_prefix" validate:"required,ne="`
 
 	// The prefix length part of the CIDR.
-	PrefixLength *string `json:"-" validate:"required,ne="`
+	PrefixLength *string `json:"prefix_length" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -17960,16 +17977,16 @@ func (options *AddVPNGatewayConnectionLocalCIDROptions) SetHeaders(param map[str
 // AddVPNGatewayConnectionPeerCIDROptions : The AddVPNGatewayConnectionPeerCIDR options.
 type AddVPNGatewayConnectionPeerCIDROptions struct {
 	// The VPN gateway identifier.
-	VPNGatewayID *string `json:"-" validate:"required,ne="`
+	VPNGatewayID *string `json:"vpn_gateway_id" validate:"required,ne="`
 
 	// The VPN gateway connection identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The address prefix part of the CIDR.
-	CIDRPrefix *string `json:"-" validate:"required,ne="`
+	CIDRPrefix *string `json:"cidr_prefix" validate:"required,ne="`
 
 	// The prefix length part of the CIDR.
-	PrefixLength *string `json:"-" validate:"required,ne="`
+	PrefixLength *string `json:"prefix_length" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -18258,16 +18275,16 @@ func UnmarshalCertificateInstanceReference(m map[string]json.RawMessage, result 
 // CheckVPNGatewayConnectionLocalCIDROptions : The CheckVPNGatewayConnectionLocalCIDR options.
 type CheckVPNGatewayConnectionLocalCIDROptions struct {
 	// The VPN gateway identifier.
-	VPNGatewayID *string `json:"-" validate:"required,ne="`
+	VPNGatewayID *string `json:"vpn_gateway_id" validate:"required,ne="`
 
 	// The VPN gateway connection identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The address prefix part of the CIDR.
-	CIDRPrefix *string `json:"-" validate:"required,ne="`
+	CIDRPrefix *string `json:"cidr_prefix" validate:"required,ne="`
 
 	// The prefix length part of the CIDR.
-	PrefixLength *string `json:"-" validate:"required,ne="`
+	PrefixLength *string `json:"prefix_length" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -18316,16 +18333,16 @@ func (options *CheckVPNGatewayConnectionLocalCIDROptions) SetHeaders(param map[s
 // CheckVPNGatewayConnectionPeerCIDROptions : The CheckVPNGatewayConnectionPeerCIDR options.
 type CheckVPNGatewayConnectionPeerCIDROptions struct {
 	// The VPN gateway identifier.
-	VPNGatewayID *string `json:"-" validate:"required,ne="`
+	VPNGatewayID *string `json:"vpn_gateway_id" validate:"required,ne="`
 
 	// The VPN gateway connection identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The address prefix part of the CIDR.
-	CIDRPrefix *string `json:"-" validate:"required,ne="`
+	CIDRPrefix *string `json:"cidr_prefix" validate:"required,ne="`
 
 	// The prefix length part of the CIDR.
-	PrefixLength *string `json:"-" validate:"required,ne="`
+	PrefixLength *string `json:"prefix_length" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -18816,7 +18833,7 @@ func (options *CreateImageOptions) SetHeaders(param map[string]string) *CreateIm
 // CreateInstanceActionOptions : The CreateInstanceAction options.
 type CreateInstanceActionOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The type of action.
 	Type *string `json:"type" validate:"required"`
@@ -18871,7 +18888,7 @@ func (options *CreateInstanceActionOptions) SetHeaders(param map[string]string) 
 // CreateInstanceConsoleAccessTokenOptions : The CreateInstanceConsoleAccessToken options.
 type CreateInstanceConsoleAccessTokenOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The instance console type for which this token may be used.
 	ConsoleType *string `json:"console_type" validate:"required"`
@@ -18926,10 +18943,10 @@ func (options *CreateInstanceConsoleAccessTokenOptions) SetHeaders(param map[str
 // CreateInstanceGroupManagerActionOptions : The CreateInstanceGroupManagerAction options.
 type CreateInstanceGroupManagerActionOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager identifier.
-	InstanceGroupManagerID *string `json:"-" validate:"required,ne="`
+	InstanceGroupManagerID *string `json:"instance_group_manager_id" validate:"required,ne="`
 
 	// The instance group manager action prototype object.
 	InstanceGroupManagerActionPrototype InstanceGroupManagerActionPrototypeIntf `json:"InstanceGroupManagerActionPrototype" validate:"required"`
@@ -18974,7 +18991,7 @@ func (options *CreateInstanceGroupManagerActionOptions) SetHeaders(param map[str
 // CreateInstanceGroupManagerOptions : The CreateInstanceGroupManager options.
 type CreateInstanceGroupManagerOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager prototype object.
 	InstanceGroupManagerPrototype InstanceGroupManagerPrototypeIntf `json:"InstanceGroupManagerPrototype" validate:"required"`
@@ -19012,10 +19029,10 @@ func (options *CreateInstanceGroupManagerOptions) SetHeaders(param map[string]st
 // CreateInstanceGroupManagerPolicyOptions : The CreateInstanceGroupManagerPolicy options.
 type CreateInstanceGroupManagerPolicyOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager identifier.
-	InstanceGroupManagerID *string `json:"-" validate:"required,ne="`
+	InstanceGroupManagerID *string `json:"instance_group_manager_id" validate:"required,ne="`
 
 	// The instance group manager policy prototype object.
 	InstanceGroupManagerPolicyPrototype InstanceGroupManagerPolicyPrototypeIntf `json:"InstanceGroupManagerPolicyPrototype" validate:"required"`
@@ -19158,7 +19175,7 @@ func (options *CreateInstanceGroupOptions) SetHeaders(param map[string]string) *
 // CreateInstanceNetworkInterfaceOptions : The CreateInstanceNetworkInterface options.
 type CreateInstanceNetworkInterfaceOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The associated subnet.
 	Subnet SubnetIdentityIntf `json:"subnet" validate:"required"`
@@ -19291,7 +19308,7 @@ func (options *CreateInstanceTemplateOptions) SetHeaders(param map[string]string
 // CreateInstanceVolumeAttachmentOptions : The CreateInstanceVolumeAttachment options.
 type CreateInstanceVolumeAttachmentOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// An existing volume to attach to the instance, or a prototype object for a new volume.
 	Volume VolumeAttachmentPrototypeVolumeIntf `json:"volume" validate:"required"`
@@ -19450,8 +19467,9 @@ func (options *CreateIpsecPolicyOptions) SetHeaders(param map[string]string) *Cr
 
 // CreateKeyOptions : The CreateKey options.
 type CreateKeyOptions struct {
-	// A unique public SSH key to import, encoded in PEM format. The key (prior to encoding) must be either 2048 or 4096
-	// bits long.
+	// A unique public SSH key to import, in OpenSSH format (consisting of three space-separated fields: the algorithm
+	// name, base64-encoded key, and a comment). The algorithm and comment fields may be omitted, as only the key field is
+	// imported.
 	PublicKey *string `json:"public_key" validate:"required"`
 
 	// The unique user-defined name for this key. If unspecified, the name will be a hyphenated list of randomly-selected
@@ -19515,11 +19533,7 @@ func (options *CreateKeyOptions) SetHeaders(param map[string]string) *CreateKeyO
 // CreateLoadBalancerListenerOptions : The CreateLoadBalancerListener options.
 type CreateLoadBalancerListenerOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
-
-	// The listener port number. Each listener in the load balancer must have a unique
-	// `port` and `protocol` combination.
-	Port *int64 `json:"port" validate:"required"`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener protocol. Each listener in the load balancer must have a unique `port` and `protocol` combination.
 	// Additional restrictions:
@@ -19557,6 +19571,26 @@ type CreateLoadBalancerListenerOptions struct {
 	// The policy prototype objects for this listener.
 	Policies []LoadBalancerListenerPolicyPrototype `json:"policies,omitempty"`
 
+	// The listener port number, or the inclusive lower bound of the port range. Each listener in the load balancer must
+	// have a unique `port` and `protocol` combination.
+	//
+	// Not supported for load balancers operating with route mode enabled.
+	Port *int64 `json:"port,omitempty"`
+
+	// The inclusive upper bound of the range of ports used by this listener. Must not be less than `port_min`.
+	//
+	// At present, only load balancers operating with route mode enabled support different values for `port_min` and
+	// `port_max`.  When route mode is enabled, only a value of
+	// `65535` is supported for `port_max`.
+	PortMax *int64 `json:"port_max,omitempty"`
+
+	// The inclusive lower bound of the range of ports used by this listener. Must not be greater than `port_max`.
+	//
+	// At present, only load balancers operating with route mode enabled support different values for `port_min` and
+	// `port_max`.  When route mode is enabled, only a value of
+	// `1` is supported for `port_min`.
+	PortMin *int64 `json:"port_min,omitempty"`
+
 	// Allows users to set headers on API requests
 	Headers map[string]string
 }
@@ -19574,10 +19608,9 @@ const (
 )
 
 // NewCreateLoadBalancerListenerOptions : Instantiate CreateLoadBalancerListenerOptions
-func (*VpcV1) NewCreateLoadBalancerListenerOptions(loadBalancerID string, port int64, protocol string) *CreateLoadBalancerListenerOptions {
+func (*VpcV1) NewCreateLoadBalancerListenerOptions(loadBalancerID string, protocol string) *CreateLoadBalancerListenerOptions {
 	return &CreateLoadBalancerListenerOptions{
 		LoadBalancerID: core.StringPtr(loadBalancerID),
-		Port:           core.Int64Ptr(port),
 		Protocol:       core.StringPtr(protocol),
 	}
 }
@@ -19585,12 +19618,6 @@ func (*VpcV1) NewCreateLoadBalancerListenerOptions(loadBalancerID string, port i
 // SetLoadBalancerID : Allow user to set LoadBalancerID
 func (_options *CreateLoadBalancerListenerOptions) SetLoadBalancerID(loadBalancerID string) *CreateLoadBalancerListenerOptions {
 	_options.LoadBalancerID = core.StringPtr(loadBalancerID)
-	return _options
-}
-
-// SetPort : Allow user to set Port
-func (_options *CreateLoadBalancerListenerOptions) SetPort(port int64) *CreateLoadBalancerListenerOptions {
-	_options.Port = core.Int64Ptr(port)
 	return _options
 }
 
@@ -19636,6 +19663,24 @@ func (_options *CreateLoadBalancerListenerOptions) SetPolicies(policies []LoadBa
 	return _options
 }
 
+// SetPort : Allow user to set Port
+func (_options *CreateLoadBalancerListenerOptions) SetPort(port int64) *CreateLoadBalancerListenerOptions {
+	_options.Port = core.Int64Ptr(port)
+	return _options
+}
+
+// SetPortMax : Allow user to set PortMax
+func (_options *CreateLoadBalancerListenerOptions) SetPortMax(portMax int64) *CreateLoadBalancerListenerOptions {
+	_options.PortMax = core.Int64Ptr(portMax)
+	return _options
+}
+
+// SetPortMin : Allow user to set PortMin
+func (_options *CreateLoadBalancerListenerOptions) SetPortMin(portMin int64) *CreateLoadBalancerListenerOptions {
+	_options.PortMin = core.Int64Ptr(portMin)
+	return _options
+}
+
 // SetHeaders : Allow user to set Headers
 func (options *CreateLoadBalancerListenerOptions) SetHeaders(param map[string]string) *CreateLoadBalancerListenerOptions {
 	options.Headers = param
@@ -19645,10 +19690,10 @@ func (options *CreateLoadBalancerListenerOptions) SetHeaders(param map[string]st
 // CreateLoadBalancerListenerPolicyOptions : The CreateLoadBalancerListenerPolicy options.
 type CreateLoadBalancerListenerPolicyOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener identifier.
-	ListenerID *string `json:"-" validate:"required,ne="`
+	ListenerID *string `json:"listener_id" validate:"required,ne="`
 
 	// The policy action.
 	//
@@ -19750,13 +19795,13 @@ func (options *CreateLoadBalancerListenerPolicyOptions) SetHeaders(param map[str
 // CreateLoadBalancerListenerPolicyRuleOptions : The CreateLoadBalancerListenerPolicyRule options.
 type CreateLoadBalancerListenerPolicyRuleOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener identifier.
-	ListenerID *string `json:"-" validate:"required,ne="`
+	ListenerID *string `json:"listener_id" validate:"required,ne="`
 
 	// The policy identifier.
-	PolicyID *string `json:"-" validate:"required,ne="`
+	PolicyID *string `json:"policy_id" validate:"required,ne="`
 
 	// The condition of the rule.
 	Condition *string `json:"condition" validate:"required"`
@@ -19868,6 +19913,8 @@ func (options *CreateLoadBalancerListenerPolicyRuleOptions) SetHeaders(param map
 // CreateLoadBalancerOptions : The CreateLoadBalancer options.
 type CreateLoadBalancerOptions struct {
 	// Indicates whether this load balancer is public or private.
+	//
+	// At present, if route mode is enabled, the load balancer must be private.
 	IsPublic *bool `json:"is_public" validate:"required"`
 
 	// The subnets to provision this load balancer.
@@ -19897,6 +19944,11 @@ type CreateLoadBalancerOptions struct {
 	// The resource group to use. If unspecified, the account's [default resource
 	// group](https://cloud.ibm.com/apidocs/resource-manager#introduction) is used.
 	ResourceGroup ResourceGroupIdentityIntf `json:"resource_group,omitempty"`
+
+	// Indicates whether route mode is enabled for this load balancer.
+	//
+	// At present, public load balancers are not supported with route mode enabled.
+	RouteMode *bool `json:"route_mode,omitempty"`
 
 	// The security groups to use for this load balancer.
 	//
@@ -19963,6 +20015,12 @@ func (_options *CreateLoadBalancerOptions) SetResourceGroup(resourceGroup Resour
 	return _options
 }
 
+// SetRouteMode : Allow user to set RouteMode
+func (_options *CreateLoadBalancerOptions) SetRouteMode(routeMode bool) *CreateLoadBalancerOptions {
+	_options.RouteMode = core.BoolPtr(routeMode)
+	return _options
+}
+
 // SetSecurityGroups : Allow user to set SecurityGroups
 func (_options *CreateLoadBalancerOptions) SetSecurityGroups(securityGroups []SecurityGroupIdentityIntf) *CreateLoadBalancerOptions {
 	_options.SecurityGroups = securityGroups
@@ -19978,10 +20036,10 @@ func (options *CreateLoadBalancerOptions) SetHeaders(param map[string]string) *C
 // CreateLoadBalancerPoolMemberOptions : The CreateLoadBalancerPoolMember options.
 type CreateLoadBalancerPoolMemberOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The pool identifier.
-	PoolID *string `json:"-" validate:"required,ne="`
+	PoolID *string `json:"pool_id" validate:"required,ne="`
 
 	// The port number of the application running in the server member.
 	Port *int64 `json:"port" validate:"required"`
@@ -20047,7 +20105,7 @@ func (options *CreateLoadBalancerPoolMemberOptions) SetHeaders(param map[string]
 // CreateLoadBalancerPoolOptions : The CreateLoadBalancerPool options.
 type CreateLoadBalancerPoolOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The load balancing algorithm.
 	Algorithm *string `json:"algorithm" validate:"required"`
@@ -20207,7 +20265,7 @@ func (options *CreateNetworkACLOptions) SetHeaders(param map[string]string) *Cre
 // CreateNetworkACLRuleOptions : The CreateNetworkACLRule options.
 type CreateNetworkACLRuleOptions struct {
 	// The network ACL identifier.
-	NetworkACLID *string `json:"-" validate:"required,ne="`
+	NetworkACLID *string `json:"network_acl_id" validate:"required,ne="`
 
 	// The network ACL rule prototype object.
 	NetworkACLRulePrototype NetworkACLRulePrototypeIntf `json:"NetworkACLRulePrototype" validate:"required"`
@@ -20436,7 +20494,7 @@ func (options *CreateSecurityGroupOptions) SetHeaders(param map[string]string) *
 // CreateSecurityGroupRuleOptions : The CreateSecurityGroupRule options.
 type CreateSecurityGroupRuleOptions struct {
 	// The security group identifier.
-	SecurityGroupID *string `json:"-" validate:"required,ne="`
+	SecurityGroupID *string `json:"security_group_id" validate:"required,ne="`
 
 	// The properties of the security group rule to be created.
 	SecurityGroupRulePrototype SecurityGroupRulePrototypeIntf `json:"SecurityGroupRulePrototype" validate:"required"`
@@ -20474,10 +20532,10 @@ func (options *CreateSecurityGroupRuleOptions) SetHeaders(param map[string]strin
 // CreateSecurityGroupTargetBindingOptions : The CreateSecurityGroupTargetBinding options.
 type CreateSecurityGroupTargetBindingOptions struct {
 	// The security group identifier.
-	SecurityGroupID *string `json:"-" validate:"required,ne="`
+	SecurityGroupID *string `json:"security_group_id" validate:"required,ne="`
 
 	// The security group target identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -20588,7 +20646,7 @@ func (options *CreateSubnetOptions) SetHeaders(param map[string]string) *CreateS
 // CreateSubnetReservedIPOptions : The CreateSubnetReservedIP options.
 type CreateSubnetReservedIPOptions struct {
 	// The subnet identifier.
-	SubnetID *string `json:"-" validate:"required,ne="`
+	SubnetID *string `json:"subnet_id" validate:"required,ne="`
 
 	// If set to `true`, this reserved IP will be automatically deleted when the target is deleted or when the reserved IP
 	// is unbound. The value cannot be set to `true` if the reserved IP is unbound.
@@ -20674,7 +20732,7 @@ func (options *CreateVolumeOptions) SetHeaders(param map[string]string) *CreateV
 // CreateVPCAddressPrefixOptions : The CreateVPCAddressPrefix options.
 type CreateVPCAddressPrefixOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The IPv4 range of the address prefix, expressed in CIDR format. The request must not overlap with any existing
 	// address prefixes in the VPC or any of the following reserved address ranges:
@@ -20751,6 +20809,9 @@ func (options *CreateVPCAddressPrefixOptions) SetHeaders(param map[string]string
 type CreateVPCOptions struct {
 	// Indicates whether a default address prefix should be automatically created for each zone in this VPC. If `manual`,
 	// this VPC will be created with no default address prefixes.
+	//
+	// This property's value is used only when creating the VPC. Since address prefixes are managed identically regardless
+	// of whether they were automatically created, the value is not preserved as a VPC property.
 	AddressPrefixManagement *string `json:"address_prefix_management,omitempty"`
 
 	// Indicates whether this VPC should be connected to Classic Infrastructure. If true, this VPC's resources will have
@@ -20773,6 +20834,9 @@ type CreateVPCOptions struct {
 // Constants associated with the CreateVPCOptions.AddressPrefixManagement property.
 // Indicates whether a default address prefix should be automatically created for each zone in this VPC. If `manual`,
 // this VPC will be created with no default address prefixes.
+//
+// This property's value is used only when creating the VPC. Since address prefixes are managed identically regardless
+// of whether they were automatically created, the value is not preserved as a VPC property.
 const (
 	CreateVPCOptionsAddressPrefixManagementAutoConst   = "auto"
 	CreateVPCOptionsAddressPrefixManagementManualConst = "manual"
@@ -20816,7 +20880,7 @@ func (options *CreateVPCOptions) SetHeaders(param map[string]string) *CreateVPCO
 // CreateVPCRouteOptions : The CreateVPCRoute options.
 type CreateVPCRouteOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The destination of the route. At most two routes per `zone` in a table can have the same destination, and only if
 	// both routes have an `action` of `deliver` and the
@@ -20915,7 +20979,7 @@ func (options *CreateVPCRouteOptions) SetHeaders(param map[string]string) *Creat
 // CreateVPCRoutingTableOptions : The CreateVPCRoutingTable options.
 type CreateVPCRoutingTableOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The user-defined name for this routing table. Names must be unique within the VPC the routing table resides in. If
 	// unspecified, the name will be a hyphenated list of randomly-selected words.
@@ -21014,10 +21078,10 @@ func (options *CreateVPCRoutingTableOptions) SetHeaders(param map[string]string)
 // CreateVPCRoutingTableRouteOptions : The CreateVPCRoutingTableRoute options.
 type CreateVPCRoutingTableRouteOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The routing table identifier.
-	RoutingTableID *string `json:"-" validate:"required,ne="`
+	RoutingTableID *string `json:"routing_table_id" validate:"required,ne="`
 
 	// The destination of the route. At most two routes per `zone` in a table can have the same destination, and only if
 	// both routes have an `action` of `deliver` and the
@@ -21123,7 +21187,7 @@ func (options *CreateVPCRoutingTableRouteOptions) SetHeaders(param map[string]st
 // CreateVPNGatewayConnectionOptions : The CreateVPNGatewayConnection options.
 type CreateVPNGatewayConnectionOptions struct {
 	// The VPN gateway identifier.
-	VPNGatewayID *string `json:"-" validate:"required,ne="`
+	VPNGatewayID *string `json:"vpn_gateway_id" validate:"required,ne="`
 
 	// The VPN gateway connection prototype object.
 	VPNGatewayConnectionPrototype VPNGatewayConnectionPrototypeIntf `json:"VPNGatewayConnectionPrototype" validate:"required"`
@@ -23180,7 +23244,7 @@ func UnmarshalDefaultSecurityGroup(m map[string]json.RawMessage, result interfac
 // DeleteDedicatedHostGroupOptions : The DeleteDedicatedHostGroup options.
 type DeleteDedicatedHostGroupOptions struct {
 	// The dedicated host group identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23208,7 +23272,7 @@ func (options *DeleteDedicatedHostGroupOptions) SetHeaders(param map[string]stri
 // DeleteDedicatedHostOptions : The DeleteDedicatedHost options.
 type DeleteDedicatedHostOptions struct {
 	// The dedicated host identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23236,7 +23300,7 @@ func (options *DeleteDedicatedHostOptions) SetHeaders(param map[string]string) *
 // DeleteEndpointGatewayOptions : The DeleteEndpointGateway options.
 type DeleteEndpointGatewayOptions struct {
 	// The endpoint gateway identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23264,7 +23328,7 @@ func (options *DeleteEndpointGatewayOptions) SetHeaders(param map[string]string)
 // DeleteFloatingIPOptions : The DeleteFloatingIP options.
 type DeleteFloatingIPOptions struct {
 	// The floating IP identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23292,7 +23356,7 @@ func (options *DeleteFloatingIPOptions) SetHeaders(param map[string]string) *Del
 // DeleteFlowLogCollectorOptions : The DeleteFlowLogCollector options.
 type DeleteFlowLogCollectorOptions struct {
 	// The flow log collector identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23320,7 +23384,7 @@ func (options *DeleteFlowLogCollectorOptions) SetHeaders(param map[string]string
 // DeleteIkePolicyOptions : The DeleteIkePolicy options.
 type DeleteIkePolicyOptions struct {
 	// The IKE policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23348,7 +23412,7 @@ func (options *DeleteIkePolicyOptions) SetHeaders(param map[string]string) *Dele
 // DeleteImageOptions : The DeleteImage options.
 type DeleteImageOptions struct {
 	// The image identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23376,7 +23440,7 @@ func (options *DeleteImageOptions) SetHeaders(param map[string]string) *DeleteIm
 // DeleteInstanceGroupLoadBalancerOptions : The DeleteInstanceGroupLoadBalancer options.
 type DeleteInstanceGroupLoadBalancerOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23404,13 +23468,13 @@ func (options *DeleteInstanceGroupLoadBalancerOptions) SetHeaders(param map[stri
 // DeleteInstanceGroupManagerActionOptions : The DeleteInstanceGroupManagerAction options.
 type DeleteInstanceGroupManagerActionOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager identifier.
-	InstanceGroupManagerID *string `json:"-" validate:"required,ne="`
+	InstanceGroupManagerID *string `json:"instance_group_manager_id" validate:"required,ne="`
 
 	// The instance group manager action identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23452,10 +23516,10 @@ func (options *DeleteInstanceGroupManagerActionOptions) SetHeaders(param map[str
 // DeleteInstanceGroupManagerOptions : The DeleteInstanceGroupManager options.
 type DeleteInstanceGroupManagerOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23490,13 +23554,13 @@ func (options *DeleteInstanceGroupManagerOptions) SetHeaders(param map[string]st
 // DeleteInstanceGroupManagerPolicyOptions : The DeleteInstanceGroupManagerPolicy options.
 type DeleteInstanceGroupManagerPolicyOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager identifier.
-	InstanceGroupManagerID *string `json:"-" validate:"required,ne="`
+	InstanceGroupManagerID *string `json:"instance_group_manager_id" validate:"required,ne="`
 
 	// The instance group manager policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23538,10 +23602,10 @@ func (options *DeleteInstanceGroupManagerPolicyOptions) SetHeaders(param map[str
 // DeleteInstanceGroupMembershipOptions : The DeleteInstanceGroupMembership options.
 type DeleteInstanceGroupMembershipOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group membership identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23576,7 +23640,7 @@ func (options *DeleteInstanceGroupMembershipOptions) SetHeaders(param map[string
 // DeleteInstanceGroupMembershipsOptions : The DeleteInstanceGroupMemberships options.
 type DeleteInstanceGroupMembershipsOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23604,7 +23668,7 @@ func (options *DeleteInstanceGroupMembershipsOptions) SetHeaders(param map[strin
 // DeleteInstanceGroupOptions : The DeleteInstanceGroup options.
 type DeleteInstanceGroupOptions struct {
 	// The instance group identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23632,10 +23696,10 @@ func (options *DeleteInstanceGroupOptions) SetHeaders(param map[string]string) *
 // DeleteInstanceNetworkInterfaceOptions : The DeleteInstanceNetworkInterface options.
 type DeleteInstanceNetworkInterfaceOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The network interface identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23670,7 +23734,7 @@ func (options *DeleteInstanceNetworkInterfaceOptions) SetHeaders(param map[strin
 // DeleteInstanceOptions : The DeleteInstance options.
 type DeleteInstanceOptions struct {
 	// The instance identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23698,7 +23762,7 @@ func (options *DeleteInstanceOptions) SetHeaders(param map[string]string) *Delet
 // DeleteInstanceTemplateOptions : The DeleteInstanceTemplate options.
 type DeleteInstanceTemplateOptions struct {
 	// The instance template identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23726,10 +23790,10 @@ func (options *DeleteInstanceTemplateOptions) SetHeaders(param map[string]string
 // DeleteInstanceVolumeAttachmentOptions : The DeleteInstanceVolumeAttachment options.
 type DeleteInstanceVolumeAttachmentOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The volume attachment identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23764,7 +23828,7 @@ func (options *DeleteInstanceVolumeAttachmentOptions) SetHeaders(param map[strin
 // DeleteIpsecPolicyOptions : The DeleteIpsecPolicy options.
 type DeleteIpsecPolicyOptions struct {
 	// The IPsec policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23792,7 +23856,7 @@ func (options *DeleteIpsecPolicyOptions) SetHeaders(param map[string]string) *De
 // DeleteKeyOptions : The DeleteKey options.
 type DeleteKeyOptions struct {
 	// The key identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23820,10 +23884,10 @@ func (options *DeleteKeyOptions) SetHeaders(param map[string]string) *DeleteKeyO
 // DeleteLoadBalancerListenerOptions : The DeleteLoadBalancerListener options.
 type DeleteLoadBalancerListenerOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23858,13 +23922,13 @@ func (options *DeleteLoadBalancerListenerOptions) SetHeaders(param map[string]st
 // DeleteLoadBalancerListenerPolicyOptions : The DeleteLoadBalancerListenerPolicy options.
 type DeleteLoadBalancerListenerPolicyOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener identifier.
-	ListenerID *string `json:"-" validate:"required,ne="`
+	ListenerID *string `json:"listener_id" validate:"required,ne="`
 
 	// The policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23906,16 +23970,16 @@ func (options *DeleteLoadBalancerListenerPolicyOptions) SetHeaders(param map[str
 // DeleteLoadBalancerListenerPolicyRuleOptions : The DeleteLoadBalancerListenerPolicyRule options.
 type DeleteLoadBalancerListenerPolicyRuleOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener identifier.
-	ListenerID *string `json:"-" validate:"required,ne="`
+	ListenerID *string `json:"listener_id" validate:"required,ne="`
 
 	// The policy identifier.
-	PolicyID *string `json:"-" validate:"required,ne="`
+	PolicyID *string `json:"policy_id" validate:"required,ne="`
 
 	// The rule identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23964,7 +24028,7 @@ func (options *DeleteLoadBalancerListenerPolicyRuleOptions) SetHeaders(param map
 // DeleteLoadBalancerOptions : The DeleteLoadBalancer options.
 type DeleteLoadBalancerOptions struct {
 	// The load balancer identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -23992,13 +24056,13 @@ func (options *DeleteLoadBalancerOptions) SetHeaders(param map[string]string) *D
 // DeleteLoadBalancerPoolMemberOptions : The DeleteLoadBalancerPoolMember options.
 type DeleteLoadBalancerPoolMemberOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The pool identifier.
-	PoolID *string `json:"-" validate:"required,ne="`
+	PoolID *string `json:"pool_id" validate:"required,ne="`
 
 	// The member identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24040,10 +24104,10 @@ func (options *DeleteLoadBalancerPoolMemberOptions) SetHeaders(param map[string]
 // DeleteLoadBalancerPoolOptions : The DeleteLoadBalancerPool options.
 type DeleteLoadBalancerPoolOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The pool identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24078,7 +24142,7 @@ func (options *DeleteLoadBalancerPoolOptions) SetHeaders(param map[string]string
 // DeleteNetworkACLOptions : The DeleteNetworkACL options.
 type DeleteNetworkACLOptions struct {
 	// The network ACL identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24106,10 +24170,10 @@ func (options *DeleteNetworkACLOptions) SetHeaders(param map[string]string) *Del
 // DeleteNetworkACLRuleOptions : The DeleteNetworkACLRule options.
 type DeleteNetworkACLRuleOptions struct {
 	// The network ACL identifier.
-	NetworkACLID *string `json:"-" validate:"required,ne="`
+	NetworkACLID *string `json:"network_acl_id" validate:"required,ne="`
 
 	// The rule identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24144,7 +24208,7 @@ func (options *DeleteNetworkACLRuleOptions) SetHeaders(param map[string]string) 
 // DeletePlacementGroupOptions : The DeletePlacementGroup options.
 type DeletePlacementGroupOptions struct {
 	// The placement group identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24172,7 +24236,7 @@ func (options *DeletePlacementGroupOptions) SetHeaders(param map[string]string) 
 // DeletePublicGatewayOptions : The DeletePublicGateway options.
 type DeletePublicGatewayOptions struct {
 	// The public gateway identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24200,7 +24264,7 @@ func (options *DeletePublicGatewayOptions) SetHeaders(param map[string]string) *
 // DeleteSecurityGroupOptions : The DeleteSecurityGroup options.
 type DeleteSecurityGroupOptions struct {
 	// The security group identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24228,10 +24292,10 @@ func (options *DeleteSecurityGroupOptions) SetHeaders(param map[string]string) *
 // DeleteSecurityGroupRuleOptions : The DeleteSecurityGroupRule options.
 type DeleteSecurityGroupRuleOptions struct {
 	// The security group identifier.
-	SecurityGroupID *string `json:"-" validate:"required,ne="`
+	SecurityGroupID *string `json:"security_group_id" validate:"required,ne="`
 
 	// The rule identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24266,10 +24330,10 @@ func (options *DeleteSecurityGroupRuleOptions) SetHeaders(param map[string]strin
 // DeleteSecurityGroupTargetBindingOptions : The DeleteSecurityGroupTargetBinding options.
 type DeleteSecurityGroupTargetBindingOptions struct {
 	// The security group identifier.
-	SecurityGroupID *string `json:"-" validate:"required,ne="`
+	SecurityGroupID *string `json:"security_group_id" validate:"required,ne="`
 
 	// The security group target identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24304,7 +24368,7 @@ func (options *DeleteSecurityGroupTargetBindingOptions) SetHeaders(param map[str
 // DeleteSnapshotOptions : The DeleteSnapshot options.
 type DeleteSnapshotOptions struct {
 	// The snapshot identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24332,7 +24396,7 @@ func (options *DeleteSnapshotOptions) SetHeaders(param map[string]string) *Delet
 // DeleteSnapshotsOptions : The DeleteSnapshots options.
 type DeleteSnapshotsOptions struct {
 	// Filters the collection to resources with the source volume with the specified identifier.
-	SourceVolumeID *string `json:"-" validate:"required"`
+	SourceVolumeID *string `json:"source_volume.id" validate:"required"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24360,7 +24424,7 @@ func (options *DeleteSnapshotsOptions) SetHeaders(param map[string]string) *Dele
 // DeleteSubnetOptions : The DeleteSubnet options.
 type DeleteSubnetOptions struct {
 	// The subnet identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24388,10 +24452,10 @@ func (options *DeleteSubnetOptions) SetHeaders(param map[string]string) *DeleteS
 // DeleteSubnetReservedIPOptions : The DeleteSubnetReservedIP options.
 type DeleteSubnetReservedIPOptions struct {
 	// The subnet identifier.
-	SubnetID *string `json:"-" validate:"required,ne="`
+	SubnetID *string `json:"subnet_id" validate:"required,ne="`
 
 	// The reserved IP identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24426,7 +24490,7 @@ func (options *DeleteSubnetReservedIPOptions) SetHeaders(param map[string]string
 // DeleteVolumeOptions : The DeleteVolume options.
 type DeleteVolumeOptions struct {
 	// The volume identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24454,10 +24518,10 @@ func (options *DeleteVolumeOptions) SetHeaders(param map[string]string) *DeleteV
 // DeleteVPCAddressPrefixOptions : The DeleteVPCAddressPrefix options.
 type DeleteVPCAddressPrefixOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The prefix identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24492,7 +24556,7 @@ func (options *DeleteVPCAddressPrefixOptions) SetHeaders(param map[string]string
 // DeleteVPCOptions : The DeleteVPC options.
 type DeleteVPCOptions struct {
 	// The VPC identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24520,10 +24584,10 @@ func (options *DeleteVPCOptions) SetHeaders(param map[string]string) *DeleteVPCO
 // DeleteVPCRouteOptions : The DeleteVPCRoute options.
 type DeleteVPCRouteOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The route identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24558,10 +24622,10 @@ func (options *DeleteVPCRouteOptions) SetHeaders(param map[string]string) *Delet
 // DeleteVPCRoutingTableOptions : The DeleteVPCRoutingTable options.
 type DeleteVPCRoutingTableOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The routing table identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24596,13 +24660,13 @@ func (options *DeleteVPCRoutingTableOptions) SetHeaders(param map[string]string)
 // DeleteVPCRoutingTableRouteOptions : The DeleteVPCRoutingTableRoute options.
 type DeleteVPCRoutingTableRouteOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The routing table identifier.
-	RoutingTableID *string `json:"-" validate:"required,ne="`
+	RoutingTableID *string `json:"routing_table_id" validate:"required,ne="`
 
 	// The VPC routing table route identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24644,10 +24708,10 @@ func (options *DeleteVPCRoutingTableRouteOptions) SetHeaders(param map[string]st
 // DeleteVPNGatewayConnectionOptions : The DeleteVPNGatewayConnection options.
 type DeleteVPNGatewayConnectionOptions struct {
 	// The VPN gateway identifier.
-	VPNGatewayID *string `json:"-" validate:"required,ne="`
+	VPNGatewayID *string `json:"vpn_gateway_id" validate:"required,ne="`
 
 	// The VPN gateway connection identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -24682,7 +24746,7 @@ func (options *DeleteVPNGatewayConnectionOptions) SetHeaders(param map[string]st
 // DeleteVPNGatewayOptions : The DeleteVPNGateway options.
 type DeleteVPNGatewayOptions struct {
 	// The VPN gateway identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26068,10 +26132,10 @@ func UnmarshalFlowLogCollectorTargetPrototype(m map[string]json.RawMessage, resu
 // GetDedicatedHostDiskOptions : The GetDedicatedHostDisk options.
 type GetDedicatedHostDiskOptions struct {
 	// The dedicated host identifier.
-	DedicatedHostID *string `json:"-" validate:"required,ne="`
+	DedicatedHostID *string `json:"dedicated_host_id" validate:"required,ne="`
 
 	// The dedicated host disk identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26106,7 +26170,7 @@ func (options *GetDedicatedHostDiskOptions) SetHeaders(param map[string]string) 
 // GetDedicatedHostGroupOptions : The GetDedicatedHostGroup options.
 type GetDedicatedHostGroupOptions struct {
 	// The dedicated host group identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26134,7 +26198,7 @@ func (options *GetDedicatedHostGroupOptions) SetHeaders(param map[string]string)
 // GetDedicatedHostOptions : The GetDedicatedHost options.
 type GetDedicatedHostOptions struct {
 	// The dedicated host identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26162,7 +26226,7 @@ func (options *GetDedicatedHostOptions) SetHeaders(param map[string]string) *Get
 // GetDedicatedHostProfileOptions : The GetDedicatedHostProfile options.
 type GetDedicatedHostProfileOptions struct {
 	// The dedicated host profile name.
-	Name *string `json:"-" validate:"required,ne="`
+	Name *string `json:"name" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26190,10 +26254,10 @@ func (options *GetDedicatedHostProfileOptions) SetHeaders(param map[string]strin
 // GetEndpointGatewayIPOptions : The GetEndpointGatewayIP options.
 type GetEndpointGatewayIPOptions struct {
 	// The endpoint gateway identifier.
-	EndpointGatewayID *string `json:"-" validate:"required,ne="`
+	EndpointGatewayID *string `json:"endpoint_gateway_id" validate:"required,ne="`
 
 	// The reserved IP identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26228,7 +26292,7 @@ func (options *GetEndpointGatewayIPOptions) SetHeaders(param map[string]string) 
 // GetEndpointGatewayOptions : The GetEndpointGateway options.
 type GetEndpointGatewayOptions struct {
 	// The endpoint gateway identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26256,7 +26320,7 @@ func (options *GetEndpointGatewayOptions) SetHeaders(param map[string]string) *G
 // GetFloatingIPOptions : The GetFloatingIP options.
 type GetFloatingIPOptions struct {
 	// The floating IP identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26284,7 +26348,7 @@ func (options *GetFloatingIPOptions) SetHeaders(param map[string]string) *GetFlo
 // GetFlowLogCollectorOptions : The GetFlowLogCollector options.
 type GetFlowLogCollectorOptions struct {
 	// The flow log collector identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26312,7 +26376,7 @@ func (options *GetFlowLogCollectorOptions) SetHeaders(param map[string]string) *
 // GetIkePolicyOptions : The GetIkePolicy options.
 type GetIkePolicyOptions struct {
 	// The IKE policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26340,7 +26404,7 @@ func (options *GetIkePolicyOptions) SetHeaders(param map[string]string) *GetIkeP
 // GetImageOptions : The GetImage options.
 type GetImageOptions struct {
 	// The image identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26368,10 +26432,10 @@ func (options *GetImageOptions) SetHeaders(param map[string]string) *GetImageOpt
 // GetInstanceDiskOptions : The GetInstanceDisk options.
 type GetInstanceDiskOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The instance disk identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26406,13 +26470,13 @@ func (options *GetInstanceDiskOptions) SetHeaders(param map[string]string) *GetI
 // GetInstanceGroupManagerActionOptions : The GetInstanceGroupManagerAction options.
 type GetInstanceGroupManagerActionOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager identifier.
-	InstanceGroupManagerID *string `json:"-" validate:"required,ne="`
+	InstanceGroupManagerID *string `json:"instance_group_manager_id" validate:"required,ne="`
 
 	// The instance group manager action identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26454,10 +26518,10 @@ func (options *GetInstanceGroupManagerActionOptions) SetHeaders(param map[string
 // GetInstanceGroupManagerOptions : The GetInstanceGroupManager options.
 type GetInstanceGroupManagerOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26492,13 +26556,13 @@ func (options *GetInstanceGroupManagerOptions) SetHeaders(param map[string]strin
 // GetInstanceGroupManagerPolicyOptions : The GetInstanceGroupManagerPolicy options.
 type GetInstanceGroupManagerPolicyOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager identifier.
-	InstanceGroupManagerID *string `json:"-" validate:"required,ne="`
+	InstanceGroupManagerID *string `json:"instance_group_manager_id" validate:"required,ne="`
 
 	// The instance group manager policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26540,10 +26604,10 @@ func (options *GetInstanceGroupManagerPolicyOptions) SetHeaders(param map[string
 // GetInstanceGroupMembershipOptions : The GetInstanceGroupMembership options.
 type GetInstanceGroupMembershipOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group membership identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26578,7 +26642,7 @@ func (options *GetInstanceGroupMembershipOptions) SetHeaders(param map[string]st
 // GetInstanceGroupOptions : The GetInstanceGroup options.
 type GetInstanceGroupOptions struct {
 	// The instance group identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26606,7 +26670,7 @@ func (options *GetInstanceGroupOptions) SetHeaders(param map[string]string) *Get
 // GetInstanceInitializationOptions : The GetInstanceInitialization options.
 type GetInstanceInitializationOptions struct {
 	// The instance identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26634,13 +26698,13 @@ func (options *GetInstanceInitializationOptions) SetHeaders(param map[string]str
 // GetInstanceNetworkInterfaceFloatingIPOptions : The GetInstanceNetworkInterfaceFloatingIP options.
 type GetInstanceNetworkInterfaceFloatingIPOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The network interface identifier.
-	NetworkInterfaceID *string `json:"-" validate:"required,ne="`
+	NetworkInterfaceID *string `json:"network_interface_id" validate:"required,ne="`
 
 	// The floating IP identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26682,10 +26746,10 @@ func (options *GetInstanceNetworkInterfaceFloatingIPOptions) SetHeaders(param ma
 // GetInstanceNetworkInterfaceOptions : The GetInstanceNetworkInterface options.
 type GetInstanceNetworkInterfaceOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The network interface identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26720,7 +26784,7 @@ func (options *GetInstanceNetworkInterfaceOptions) SetHeaders(param map[string]s
 // GetInstanceOptions : The GetInstance options.
 type GetInstanceOptions struct {
 	// The instance identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26748,7 +26812,7 @@ func (options *GetInstanceOptions) SetHeaders(param map[string]string) *GetInsta
 // GetInstanceProfileOptions : The GetInstanceProfile options.
 type GetInstanceProfileOptions struct {
 	// The instance profile name.
-	Name *string `json:"-" validate:"required,ne="`
+	Name *string `json:"name" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26776,7 +26840,7 @@ func (options *GetInstanceProfileOptions) SetHeaders(param map[string]string) *G
 // GetInstanceTemplateOptions : The GetInstanceTemplate options.
 type GetInstanceTemplateOptions struct {
 	// The instance template identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26804,10 +26868,10 @@ func (options *GetInstanceTemplateOptions) SetHeaders(param map[string]string) *
 // GetInstanceVolumeAttachmentOptions : The GetInstanceVolumeAttachment options.
 type GetInstanceVolumeAttachmentOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The volume attachment identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26842,7 +26906,7 @@ func (options *GetInstanceVolumeAttachmentOptions) SetHeaders(param map[string]s
 // GetIpsecPolicyOptions : The GetIpsecPolicy options.
 type GetIpsecPolicyOptions struct {
 	// The IPsec policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26870,7 +26934,7 @@ func (options *GetIpsecPolicyOptions) SetHeaders(param map[string]string) *GetIp
 // GetKeyOptions : The GetKey options.
 type GetKeyOptions struct {
 	// The key identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26898,10 +26962,10 @@ func (options *GetKeyOptions) SetHeaders(param map[string]string) *GetKeyOptions
 // GetLoadBalancerListenerOptions : The GetLoadBalancerListener options.
 type GetLoadBalancerListenerOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26936,13 +27000,13 @@ func (options *GetLoadBalancerListenerOptions) SetHeaders(param map[string]strin
 // GetLoadBalancerListenerPolicyOptions : The GetLoadBalancerListenerPolicy options.
 type GetLoadBalancerListenerPolicyOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener identifier.
-	ListenerID *string `json:"-" validate:"required,ne="`
+	ListenerID *string `json:"listener_id" validate:"required,ne="`
 
 	// The policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -26984,16 +27048,16 @@ func (options *GetLoadBalancerListenerPolicyOptions) SetHeaders(param map[string
 // GetLoadBalancerListenerPolicyRuleOptions : The GetLoadBalancerListenerPolicyRule options.
 type GetLoadBalancerListenerPolicyRuleOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener identifier.
-	ListenerID *string `json:"-" validate:"required,ne="`
+	ListenerID *string `json:"listener_id" validate:"required,ne="`
 
 	// The policy identifier.
-	PolicyID *string `json:"-" validate:"required,ne="`
+	PolicyID *string `json:"policy_id" validate:"required,ne="`
 
 	// The rule identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27042,7 +27106,7 @@ func (options *GetLoadBalancerListenerPolicyRuleOptions) SetHeaders(param map[st
 // GetLoadBalancerOptions : The GetLoadBalancer options.
 type GetLoadBalancerOptions struct {
 	// The load balancer identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27070,13 +27134,13 @@ func (options *GetLoadBalancerOptions) SetHeaders(param map[string]string) *GetL
 // GetLoadBalancerPoolMemberOptions : The GetLoadBalancerPoolMember options.
 type GetLoadBalancerPoolMemberOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The pool identifier.
-	PoolID *string `json:"-" validate:"required,ne="`
+	PoolID *string `json:"pool_id" validate:"required,ne="`
 
 	// The member identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27118,10 +27182,10 @@ func (options *GetLoadBalancerPoolMemberOptions) SetHeaders(param map[string]str
 // GetLoadBalancerPoolOptions : The GetLoadBalancerPool options.
 type GetLoadBalancerPoolOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The pool identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27156,7 +27220,7 @@ func (options *GetLoadBalancerPoolOptions) SetHeaders(param map[string]string) *
 // GetLoadBalancerProfileOptions : The GetLoadBalancerProfile options.
 type GetLoadBalancerProfileOptions struct {
 	// The load balancer profile name.
-	Name *string `json:"-" validate:"required,ne="`
+	Name *string `json:"name" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27184,7 +27248,7 @@ func (options *GetLoadBalancerProfileOptions) SetHeaders(param map[string]string
 // GetLoadBalancerStatisticsOptions : The GetLoadBalancerStatistics options.
 type GetLoadBalancerStatisticsOptions struct {
 	// The load balancer identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27212,7 +27276,7 @@ func (options *GetLoadBalancerStatisticsOptions) SetHeaders(param map[string]str
 // GetNetworkACLOptions : The GetNetworkACL options.
 type GetNetworkACLOptions struct {
 	// The network ACL identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27240,10 +27304,10 @@ func (options *GetNetworkACLOptions) SetHeaders(param map[string]string) *GetNet
 // GetNetworkACLRuleOptions : The GetNetworkACLRule options.
 type GetNetworkACLRuleOptions struct {
 	// The network ACL identifier.
-	NetworkACLID *string `json:"-" validate:"required,ne="`
+	NetworkACLID *string `json:"network_acl_id" validate:"required,ne="`
 
 	// The rule identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27278,7 +27342,7 @@ func (options *GetNetworkACLRuleOptions) SetHeaders(param map[string]string) *Ge
 // GetOperatingSystemOptions : The GetOperatingSystem options.
 type GetOperatingSystemOptions struct {
 	// The operating system name.
-	Name *string `json:"-" validate:"required,ne="`
+	Name *string `json:"name" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27306,7 +27370,7 @@ func (options *GetOperatingSystemOptions) SetHeaders(param map[string]string) *G
 // GetPlacementGroupOptions : The GetPlacementGroup options.
 type GetPlacementGroupOptions struct {
 	// The placement group identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27334,7 +27398,7 @@ func (options *GetPlacementGroupOptions) SetHeaders(param map[string]string) *Ge
 // GetPublicGatewayOptions : The GetPublicGateway options.
 type GetPublicGatewayOptions struct {
 	// The public gateway identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27362,7 +27426,7 @@ func (options *GetPublicGatewayOptions) SetHeaders(param map[string]string) *Get
 // GetRegionOptions : The GetRegion options.
 type GetRegionOptions struct {
 	// The region name.
-	Name *string `json:"-" validate:"required,ne="`
+	Name *string `json:"name" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27390,10 +27454,10 @@ func (options *GetRegionOptions) SetHeaders(param map[string]string) *GetRegionO
 // GetRegionZoneOptions : The GetRegionZone options.
 type GetRegionZoneOptions struct {
 	// The region name.
-	RegionName *string `json:"-" validate:"required,ne="`
+	RegionName *string `json:"region_name" validate:"required,ne="`
 
 	// The zone name.
-	Name *string `json:"-" validate:"required,ne="`
+	Name *string `json:"name" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27428,10 +27492,10 @@ func (options *GetRegionZoneOptions) SetHeaders(param map[string]string) *GetReg
 // GetSecurityGroupNetworkInterfaceOptions : The GetSecurityGroupNetworkInterface options.
 type GetSecurityGroupNetworkInterfaceOptions struct {
 	// The security group identifier.
-	SecurityGroupID *string `json:"-" validate:"required,ne="`
+	SecurityGroupID *string `json:"security_group_id" validate:"required,ne="`
 
 	// The network interface identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27466,7 +27530,7 @@ func (options *GetSecurityGroupNetworkInterfaceOptions) SetHeaders(param map[str
 // GetSecurityGroupOptions : The GetSecurityGroup options.
 type GetSecurityGroupOptions struct {
 	// The security group identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27494,10 +27558,10 @@ func (options *GetSecurityGroupOptions) SetHeaders(param map[string]string) *Get
 // GetSecurityGroupRuleOptions : The GetSecurityGroupRule options.
 type GetSecurityGroupRuleOptions struct {
 	// The security group identifier.
-	SecurityGroupID *string `json:"-" validate:"required,ne="`
+	SecurityGroupID *string `json:"security_group_id" validate:"required,ne="`
 
 	// The rule identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27532,10 +27596,10 @@ func (options *GetSecurityGroupRuleOptions) SetHeaders(param map[string]string) 
 // GetSecurityGroupTargetOptions : The GetSecurityGroupTarget options.
 type GetSecurityGroupTargetOptions struct {
 	// The security group identifier.
-	SecurityGroupID *string `json:"-" validate:"required,ne="`
+	SecurityGroupID *string `json:"security_group_id" validate:"required,ne="`
 
 	// The security group target identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27570,7 +27634,7 @@ func (options *GetSecurityGroupTargetOptions) SetHeaders(param map[string]string
 // GetSnapshotOptions : The GetSnapshot options.
 type GetSnapshotOptions struct {
 	// The snapshot identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27598,7 +27662,7 @@ func (options *GetSnapshotOptions) SetHeaders(param map[string]string) *GetSnaps
 // GetSubnetNetworkACLOptions : The GetSubnetNetworkACL options.
 type GetSubnetNetworkACLOptions struct {
 	// The subnet identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27626,7 +27690,7 @@ func (options *GetSubnetNetworkACLOptions) SetHeaders(param map[string]string) *
 // GetSubnetOptions : The GetSubnet options.
 type GetSubnetOptions struct {
 	// The subnet identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27654,7 +27718,7 @@ func (options *GetSubnetOptions) SetHeaders(param map[string]string) *GetSubnetO
 // GetSubnetPublicGatewayOptions : The GetSubnetPublicGateway options.
 type GetSubnetPublicGatewayOptions struct {
 	// The subnet identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27682,10 +27746,10 @@ func (options *GetSubnetPublicGatewayOptions) SetHeaders(param map[string]string
 // GetSubnetReservedIPOptions : The GetSubnetReservedIP options.
 type GetSubnetReservedIPOptions struct {
 	// The subnet identifier.
-	SubnetID *string `json:"-" validate:"required,ne="`
+	SubnetID *string `json:"subnet_id" validate:"required,ne="`
 
 	// The reserved IP identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27720,7 +27784,7 @@ func (options *GetSubnetReservedIPOptions) SetHeaders(param map[string]string) *
 // GetSubnetRoutingTableOptions : The GetSubnetRoutingTable options.
 type GetSubnetRoutingTableOptions struct {
 	// The subnet identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27748,7 +27812,7 @@ func (options *GetSubnetRoutingTableOptions) SetHeaders(param map[string]string)
 // GetVolumeOptions : The GetVolume options.
 type GetVolumeOptions struct {
 	// The volume identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27776,7 +27840,7 @@ func (options *GetVolumeOptions) SetHeaders(param map[string]string) *GetVolumeO
 // GetVolumeProfileOptions : The GetVolumeProfile options.
 type GetVolumeProfileOptions struct {
 	// The volume profile name.
-	Name *string `json:"-" validate:"required,ne="`
+	Name *string `json:"name" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27804,10 +27868,10 @@ func (options *GetVolumeProfileOptions) SetHeaders(param map[string]string) *Get
 // GetVPCAddressPrefixOptions : The GetVPCAddressPrefix options.
 type GetVPCAddressPrefixOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The prefix identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27842,7 +27906,7 @@ func (options *GetVPCAddressPrefixOptions) SetHeaders(param map[string]string) *
 // GetVPCDefaultNetworkACLOptions : The GetVPCDefaultNetworkACL options.
 type GetVPCDefaultNetworkACLOptions struct {
 	// The VPC identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27870,7 +27934,7 @@ func (options *GetVPCDefaultNetworkACLOptions) SetHeaders(param map[string]strin
 // GetVPCDefaultRoutingTableOptions : The GetVPCDefaultRoutingTable options.
 type GetVPCDefaultRoutingTableOptions struct {
 	// The VPC identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27898,7 +27962,7 @@ func (options *GetVPCDefaultRoutingTableOptions) SetHeaders(param map[string]str
 // GetVPCDefaultSecurityGroupOptions : The GetVPCDefaultSecurityGroup options.
 type GetVPCDefaultSecurityGroupOptions struct {
 	// The VPC identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27926,7 +27990,7 @@ func (options *GetVPCDefaultSecurityGroupOptions) SetHeaders(param map[string]st
 // GetVPCOptions : The GetVPC options.
 type GetVPCOptions struct {
 	// The VPC identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27954,10 +28018,10 @@ func (options *GetVPCOptions) SetHeaders(param map[string]string) *GetVPCOptions
 // GetVPCRouteOptions : The GetVPCRoute options.
 type GetVPCRouteOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The route identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -27992,10 +28056,10 @@ func (options *GetVPCRouteOptions) SetHeaders(param map[string]string) *GetVPCRo
 // GetVPCRoutingTableOptions : The GetVPCRoutingTable options.
 type GetVPCRoutingTableOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The routing table identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -28030,13 +28094,13 @@ func (options *GetVPCRoutingTableOptions) SetHeaders(param map[string]string) *G
 // GetVPCRoutingTableRouteOptions : The GetVPCRoutingTableRoute options.
 type GetVPCRoutingTableRouteOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The routing table identifier.
-	RoutingTableID *string `json:"-" validate:"required,ne="`
+	RoutingTableID *string `json:"routing_table_id" validate:"required,ne="`
 
 	// The VPC routing table route identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -28078,10 +28142,10 @@ func (options *GetVPCRoutingTableRouteOptions) SetHeaders(param map[string]strin
 // GetVPNGatewayConnectionOptions : The GetVPNGatewayConnection options.
 type GetVPNGatewayConnectionOptions struct {
 	// The VPN gateway identifier.
-	VPNGatewayID *string `json:"-" validate:"required,ne="`
+	VPNGatewayID *string `json:"vpn_gateway_id" validate:"required,ne="`
 
 	// The VPN gateway connection identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -28116,7 +28180,7 @@ func (options *GetVPNGatewayConnectionOptions) SetHeaders(param map[string]strin
 // GetVPNGatewayOptions : The GetVPNGateway options.
 type GetVPNGatewayOptions struct {
 	// The VPN gateway identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -29596,7 +29660,8 @@ func UnmarshalImageStatusReason(m map[string]json.RawMessage, result interface{}
 
 // Instance : Instance struct
 type Instance struct {
-	// The total bandwidth (in megabits per second) shared across the virtual server instance's network interfaces.
+	// The total bandwidth (in megabits per second) shared across the virtual server instance's network interfaces and
+	// storage volumes.
 	Bandwidth *int64 `json:"bandwidth" validate:"required"`
 
 	// Boot volume attachment.
@@ -29607,6 +29672,9 @@ type Instance struct {
 
 	// The CRN for this virtual server instance.
 	CRN *string `json:"crn" validate:"required"`
+
+	// If present, the dedicated host this virtual server instance has been placed on.
+	DedicatedHost *DedicatedHostReference `json:"dedicated_host,omitempty"`
 
 	// The instance disks for this virtual server instance.
 	Disks []InstanceDisk `json:"disks" validate:"required"`
@@ -29657,6 +29725,14 @@ type Instance struct {
 	// unexpected reason code was encountered.
 	StatusReasons []InstanceStatusReason `json:"status_reasons" validate:"required"`
 
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance network interfaces.
+	TotalNetworkBandwidth *int64 `json:"total_network_bandwidth" validate:"required"`
+
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance storage volumes. An increase in
+	// this value will result in a corresponding decrease to
+	// `total_network_bandwidth`.
+	TotalVolumeBandwidth *int64 `json:"total_volume_bandwidth" validate:"required"`
+
 	// The virtual server instance VCPU configuration.
 	Vcpu *InstanceVcpu `json:"vcpu" validate:"required"`
 
@@ -29702,6 +29778,10 @@ func UnmarshalInstance(m map[string]json.RawMessage, result interface{}) (err er
 		return
 	}
 	err = core.UnmarshalPrimitive(m, "crn", &obj.CRN)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalModel(m, "dedicated_host", &obj.DedicatedHost, UnmarshalDedicatedHostReference)
 	if err != nil {
 		return
 	}
@@ -29762,6 +29842,14 @@ func UnmarshalInstance(m map[string]json.RawMessage, result interface{}) (err er
 		return
 	}
 	err = core.UnmarshalModel(m, "status_reasons", &obj.StatusReasons, UnmarshalInstanceStatusReason)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "total_network_bandwidth", &obj.TotalNetworkBandwidth)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth)
 	if err != nil {
 		return
 	}
@@ -32286,6 +32374,11 @@ type InstancePatch struct {
 	//   instance is placed on a dedicated host, the requested profile `family` must be
 	//   the same as the dedicated host `family`.
 	Profile InstancePatchProfileIntf `json:"profile,omitempty"`
+
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance storage volumes. An increase in
+	// this value will result in a corresponding decrease to
+	// `total_network_bandwidth`.
+	TotalVolumeBandwidth *int64 `json:"total_volume_bandwidth,omitempty"`
 }
 
 // UnmarshalInstancePatch unmarshals an instance of InstancePatch from the specified map of raw messages.
@@ -32296,6 +32389,10 @@ func UnmarshalInstancePatch(m map[string]json.RawMessage, result interface{}) (e
 		return
 	}
 	err = core.UnmarshalModel(m, "profile", &obj.Profile, UnmarshalInstancePatchProfile)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth)
 	if err != nil {
 		return
 	}
@@ -32480,6 +32577,14 @@ type InstanceProfile struct {
 	// The product family this virtual server instance profile belongs to.
 	Family *string `json:"family,omitempty"`
 
+	GpuCount InstanceProfileGpuIntf `json:"gpu_count,omitempty"`
+
+	GpuManufacturer *InstanceProfileGpuManufacturer `json:"gpu_manufacturer,omitempty"`
+
+	GpuMemory InstanceProfileGpuMemoryIntf `json:"gpu_memory,omitempty"`
+
+	GpuModel *InstanceProfileGpuModel `json:"gpu_model,omitempty"`
+
 	// The URL for this virtual server instance profile.
 	Href *string `json:"href" validate:"required"`
 
@@ -32491,6 +32596,8 @@ type InstanceProfile struct {
 	OsArchitecture *InstanceProfileOsArchitecture `json:"os_architecture" validate:"required"`
 
 	PortSpeed InstanceProfilePortSpeedIntf `json:"port_speed" validate:"required"`
+
+	TotalVolumeBandwidth InstanceProfileVolumeBandwidthIntf `json:"total_volume_bandwidth" validate:"required"`
 
 	VcpuArchitecture *InstanceProfileVcpuArchitecture `json:"vcpu_architecture" validate:"required"`
 
@@ -32512,6 +32619,22 @@ func UnmarshalInstanceProfile(m map[string]json.RawMessage, result interface{}) 
 	if err != nil {
 		return
 	}
+	err = core.UnmarshalModel(m, "gpu_count", &obj.GpuCount, UnmarshalInstanceProfileGpu)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalModel(m, "gpu_manufacturer", &obj.GpuManufacturer, UnmarshalInstanceProfileGpuManufacturer)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalModel(m, "gpu_memory", &obj.GpuMemory, UnmarshalInstanceProfileGpuMemory)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalModel(m, "gpu_model", &obj.GpuModel, UnmarshalInstanceProfileGpuModel)
+	if err != nil {
+		return
+	}
 	err = core.UnmarshalPrimitive(m, "href", &obj.Href)
 	if err != nil {
 		return
@@ -32529,6 +32652,10 @@ func UnmarshalInstanceProfile(m map[string]json.RawMessage, result interface{}) 
 		return
 	}
 	err = core.UnmarshalModel(m, "port_speed", &obj.PortSpeed, UnmarshalInstanceProfilePortSpeed)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalModel(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth, UnmarshalInstanceProfileVolumeBandwidth)
 	if err != nil {
 		return
 	}
@@ -32886,6 +33013,222 @@ func UnmarshalInstanceProfileDiskSupportedInterfaces(m map[string]json.RawMessag
 	return
 }
 
+// InstanceProfileGpu : InstanceProfileGpu struct
+// Models which "extend" this model:
+// - InstanceProfileGpuFixed
+// - InstanceProfileGpuRange
+// - InstanceProfileGpuEnum
+// - InstanceProfileGpuDependent
+type InstanceProfileGpu struct {
+	// The type for this profile field.
+	Type *string `json:"type,omitempty"`
+
+	// The value for this profile field.
+	Value *int64 `json:"value,omitempty"`
+
+	// The default value for this profile field.
+	Default *int64 `json:"default,omitempty"`
+
+	// The maximum value for this profile field.
+	Max *int64 `json:"max,omitempty"`
+
+	// The minimum value for this profile field.
+	Min *int64 `json:"min,omitempty"`
+
+	// The increment step value for this profile field.
+	Step *int64 `json:"step,omitempty"`
+
+	// The permitted values for this profile field.
+	Values []int64 `json:"values,omitempty"`
+}
+
+// Constants associated with the InstanceProfileGpu.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileGpuTypeFixedConst = "fixed"
+)
+
+func (*InstanceProfileGpu) isaInstanceProfileGpu() bool {
+	return true
+}
+
+type InstanceProfileGpuIntf interface {
+	isaInstanceProfileGpu() bool
+}
+
+// UnmarshalInstanceProfileGpu unmarshals an instance of InstanceProfileGpu from the specified map of raw messages.
+func UnmarshalInstanceProfileGpu(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileGpu)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "value", &obj.Value)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "default", &obj.Default)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "max", &obj.Max)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "min", &obj.Min)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "step", &obj.Step)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "values", &obj.Values)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileGpuManufacturer : InstanceProfileGpuManufacturer struct
+type InstanceProfileGpuManufacturer struct {
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+
+	// The possible GPU manufacturer(s) for an instance with this profile.
+	Values []string `json:"values" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileGpuManufacturer.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileGpuManufacturerTypeEnumConst = "enum"
+)
+
+// UnmarshalInstanceProfileGpuManufacturer unmarshals an instance of InstanceProfileGpuManufacturer from the specified map of raw messages.
+func UnmarshalInstanceProfileGpuManufacturer(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileGpuManufacturer)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "values", &obj.Values)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileGpuMemory : InstanceProfileGpuMemory struct
+// Models which "extend" this model:
+// - InstanceProfileGpuMemoryFixed
+// - InstanceProfileGpuMemoryRange
+// - InstanceProfileGpuMemoryEnum
+// - InstanceProfileGpuMemoryDependent
+type InstanceProfileGpuMemory struct {
+	// The type for this profile field.
+	Type *string `json:"type,omitempty"`
+
+	// The value for this profile field.
+	Value *int64 `json:"value,omitempty"`
+
+	// The default value for this profile field.
+	Default *int64 `json:"default,omitempty"`
+
+	// The maximum value for this profile field.
+	Max *int64 `json:"max,omitempty"`
+
+	// The minimum value for this profile field.
+	Min *int64 `json:"min,omitempty"`
+
+	// The increment step value for this profile field.
+	Step *int64 `json:"step,omitempty"`
+
+	// The permitted values for this profile field.
+	Values []int64 `json:"values,omitempty"`
+}
+
+// Constants associated with the InstanceProfileGpuMemory.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileGpuMemoryTypeFixedConst = "fixed"
+)
+
+func (*InstanceProfileGpuMemory) isaInstanceProfileGpuMemory() bool {
+	return true
+}
+
+type InstanceProfileGpuMemoryIntf interface {
+	isaInstanceProfileGpuMemory() bool
+}
+
+// UnmarshalInstanceProfileGpuMemory unmarshals an instance of InstanceProfileGpuMemory from the specified map of raw messages.
+func UnmarshalInstanceProfileGpuMemory(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileGpuMemory)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "value", &obj.Value)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "default", &obj.Default)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "max", &obj.Max)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "min", &obj.Min)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "step", &obj.Step)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "values", &obj.Values)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileGpuModel : InstanceProfileGpuModel struct
+type InstanceProfileGpuModel struct {
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+
+	// The possible GPU model(s) for an instance with this profile.
+	Values []string `json:"values" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileGpuModel.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileGpuModelTypeEnumConst = "enum"
+)
+
+// UnmarshalInstanceProfileGpuModel unmarshals an instance of InstanceProfileGpuModel from the specified map of raw messages.
+func UnmarshalInstanceProfileGpuModel(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileGpuModel)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "values", &obj.Values)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
 // InstanceProfileIdentity : Identifies an instance profile by a unique property.
 // Models which "extend" this model:
 // - InstanceProfileIdentityByName
@@ -33216,6 +33559,84 @@ func UnmarshalInstanceProfileVcpuArchitecture(m map[string]json.RawMessage, resu
 	return
 }
 
+// InstanceProfileVolumeBandwidth : InstanceProfileVolumeBandwidth struct
+// Models which "extend" this model:
+// - InstanceProfileVolumeBandwidthFixed
+// - InstanceProfileVolumeBandwidthRange
+// - InstanceProfileVolumeBandwidthEnum
+// - InstanceProfileVolumeBandwidthDependent
+type InstanceProfileVolumeBandwidth struct {
+	// The type for this profile field.
+	Type *string `json:"type,omitempty"`
+
+	// The value for this profile field.
+	Value *int64 `json:"value,omitempty"`
+
+	// The default value for this profile field.
+	Default *int64 `json:"default,omitempty"`
+
+	// The maximum value for this profile field.
+	Max *int64 `json:"max,omitempty"`
+
+	// The minimum value for this profile field.
+	Min *int64 `json:"min,omitempty"`
+
+	// The increment step value for this profile field.
+	Step *int64 `json:"step,omitempty"`
+
+	// The permitted values for this profile field.
+	Values []int64 `json:"values,omitempty"`
+}
+
+// Constants associated with the InstanceProfileVolumeBandwidth.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileVolumeBandwidthTypeFixedConst = "fixed"
+)
+
+func (*InstanceProfileVolumeBandwidth) isaInstanceProfileVolumeBandwidth() bool {
+	return true
+}
+
+type InstanceProfileVolumeBandwidthIntf interface {
+	isaInstanceProfileVolumeBandwidth() bool
+}
+
+// UnmarshalInstanceProfileVolumeBandwidth unmarshals an instance of InstanceProfileVolumeBandwidth from the specified map of raw messages.
+func UnmarshalInstanceProfileVolumeBandwidth(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileVolumeBandwidth)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "value", &obj.Value)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "default", &obj.Default)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "max", &obj.Max)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "min", &obj.Min)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "step", &obj.Step)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "values", &obj.Values)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
 // InstancePrototype : InstancePrototype struct
 // Models which "extend" this model:
 // - InstancePrototypeInstanceByImage
@@ -33230,6 +33651,10 @@ type InstancePrototype struct {
 	// password](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization). Keys are optional for other images, but if
 	// no keys are specified, the instance will be inaccessible unless the specified image provides another means of
 	// access.
+	//
+	// This property's value is used when provisioning the virtual server instance, but not subsequently managed.
+	// Accordingly, it is reflected as an [instance
+	// initialization](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization) property.
 	Keys []KeyIdentityIntf `json:"keys,omitempty"`
 
 	// The unique user-defined name for this virtual server instance (and default system hostname). If unspecified, the
@@ -33248,6 +33673,11 @@ type InstancePrototype struct {
 	// The resource group to use. If unspecified, the account's [default resource
 	// group](https://cloud.ibm.com/apidocs/resource-manager#introduction) is used.
 	ResourceGroup ResourceGroupIdentityIntf `json:"resource_group,omitempty"`
+
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance storage volumes. An increase in
+	// this value will result in a corresponding decrease to
+	// `total_network_bandwidth`.
+	TotalVolumeBandwidth *int64 `json:"total_volume_bandwidth,omitempty"`
 
 	// User data to be made available when setting up the virtual server instance.
 	UserData *string `json:"user_data,omitempty"`
@@ -33307,6 +33737,10 @@ func UnmarshalInstancePrototype(m map[string]json.RawMessage, result interface{}
 		return
 	}
 	err = core.UnmarshalModel(m, "resource_group", &obj.ResourceGroup, UnmarshalResourceGroupIdentity)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth)
 	if err != nil {
 		return
 	}
@@ -33479,6 +33913,10 @@ type InstanceTemplate struct {
 	// password](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization). Keys are optional for other images, but if
 	// no keys are specified, the instance will be inaccessible unless the specified image provides another means of
 	// access.
+	//
+	// This property's value is used when provisioning the virtual server instance, but not subsequently managed.
+	// Accordingly, it is reflected as an [instance
+	// initialization](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization) property.
 	Keys []KeyIdentityIntf `json:"keys,omitempty"`
 
 	// The unique user-defined name for this instance template.
@@ -33495,6 +33933,11 @@ type InstanceTemplate struct {
 
 	// The resource group for this instance template.
 	ResourceGroup *ResourceGroupReference `json:"resource_group" validate:"required"`
+
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance storage volumes. An increase in
+	// this value will result in a corresponding decrease to
+	// `total_network_bandwidth`.
+	TotalVolumeBandwidth *int64 `json:"total_volume_bandwidth,omitempty"`
 
 	// User data to be made available when setting up the virtual server instance.
 	UserData *string `json:"user_data,omitempty"`
@@ -33567,6 +34010,10 @@ func UnmarshalInstanceTemplate(m map[string]json.RawMessage, result interface{})
 		return
 	}
 	err = core.UnmarshalModel(m, "resource_group", &obj.ResourceGroup, UnmarshalResourceGroupReference)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth)
 	if err != nil {
 		return
 	}
@@ -33766,6 +34213,10 @@ type InstanceTemplatePrototype struct {
 	// password](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization). Keys are optional for other images, but if
 	// no keys are specified, the instance will be inaccessible unless the specified image provides another means of
 	// access.
+	//
+	// This property's value is used when provisioning the virtual server instance, but not subsequently managed.
+	// Accordingly, it is reflected as an [instance
+	// initialization](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization) property.
 	Keys []KeyIdentityIntf `json:"keys,omitempty"`
 
 	// The unique user-defined name for this virtual server instance (and default system hostname). If unspecified, the
@@ -33784,6 +34235,11 @@ type InstanceTemplatePrototype struct {
 	// The resource group to use. If unspecified, the account's [default resource
 	// group](https://cloud.ibm.com/apidocs/resource-manager#introduction) is used.
 	ResourceGroup ResourceGroupIdentityIntf `json:"resource_group,omitempty"`
+
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance storage volumes. An increase in
+	// this value will result in a corresponding decrease to
+	// `total_network_bandwidth`.
+	TotalVolumeBandwidth *int64 `json:"total_volume_bandwidth,omitempty"`
 
 	// User data to be made available when setting up the virtual server instance.
 	UserData *string `json:"user_data,omitempty"`
@@ -33843,6 +34299,10 @@ func UnmarshalInstanceTemplatePrototype(m map[string]json.RawMessage, result int
 		return
 	}
 	err = core.UnmarshalModel(m, "resource_group", &obj.ResourceGroup, UnmarshalResourceGroupIdentity)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth)
 	if err != nil {
 		return
 	}
@@ -33995,7 +34455,7 @@ type Key struct {
 	// words.
 	Name *string `json:"name" validate:"required"`
 
-	// The public SSH key.
+	// The public SSH key, consisting of two space-separated fields: the algorithm name, and the base64-encoded key.
 	PublicKey *string `json:"public_key" validate:"required"`
 
 	// The resource group for this key.
@@ -34304,7 +34764,7 @@ func UnmarshalKeyReferenceDeleted(m map[string]json.RawMessage, result interface
 // ListDedicatedHostDisksOptions : The ListDedicatedHostDisks options.
 type ListDedicatedHostDisksOptions struct {
 	// The dedicated host identifier.
-	DedicatedHostID *string `json:"-" validate:"required,ne="`
+	DedicatedHostID *string `json:"dedicated_host_id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -34332,17 +34792,17 @@ func (options *ListDedicatedHostDisksOptions) SetHeaders(param map[string]string
 // ListDedicatedHostGroupsOptions : The ListDedicatedHostGroups options.
 type ListDedicatedHostGroupsOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Filters the collection to resources in the zone with the exact specified name.
-	ZoneName *string `json:"-"`
+	ZoneName *string `json:"zone.name,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -34386,10 +34846,10 @@ func (options *ListDedicatedHostGroupsOptions) SetHeaders(param map[string]strin
 // ListDedicatedHostProfilesOptions : The ListDedicatedHostProfiles options.
 type ListDedicatedHostProfilesOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -34421,20 +34881,20 @@ func (options *ListDedicatedHostProfilesOptions) SetHeaders(param map[string]str
 // ListDedicatedHostsOptions : The ListDedicatedHosts options.
 type ListDedicatedHostsOptions struct {
 	// Filters the collection to dedicated host groups with the specified identifier.
-	DedicatedHostGroupID *string `json:"-"`
+	DedicatedHostGroupID *string `json:"dedicated_host_group.id,omitempty"`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Filters the collection to resources in the zone with the exact specified name.
-	ZoneName *string `json:"-"`
+	ZoneName *string `json:"zone.name,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -34484,18 +34944,18 @@ func (options *ListDedicatedHostsOptions) SetHeaders(param map[string]string) *L
 // ListEndpointGatewayIpsOptions : The ListEndpointGatewayIps options.
 type ListEndpointGatewayIpsOptions struct {
 	// The endpoint gateway identifier.
-	EndpointGatewayID *string `json:"-" validate:"required,ne="`
+	EndpointGatewayID *string `json:"endpoint_gateway_id" validate:"required,ne="`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Sorts the returned collection by the specified property name in ascending order. A `-` may be prepended to the name
 	// to sort in descending order. For example, the value `-created_at` sorts the collection by the `created_at` property
 	// in descending order, and the value `name` sorts it by the `name` property in ascending order.
-	Sort *string `json:"-"`
+	Sort *string `json:"sort,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -34551,17 +35011,17 @@ func (options *ListEndpointGatewayIpsOptions) SetHeaders(param map[string]string
 // ListEndpointGatewaysOptions : The ListEndpointGateways options.
 type ListEndpointGatewaysOptions struct {
 	// Filters the collection to resources with the exact specified name.
-	Name *string `json:"-"`
+	Name *string `json:"name,omitempty"`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -34605,14 +35065,14 @@ func (options *ListEndpointGatewaysOptions) SetHeaders(param map[string]string) 
 // ListFloatingIpsOptions : The ListFloatingIps options.
 type ListFloatingIpsOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -34650,32 +35110,32 @@ func (options *ListFloatingIpsOptions) SetHeaders(param map[string]string) *List
 // ListFlowLogCollectorsOptions : The ListFlowLogCollectors options.
 type ListFlowLogCollectorsOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Filters the collection to resources with the exact specified name.
-	Name *string `json:"-"`
+	Name *string `json:"name,omitempty"`
 
 	// Filters the collection to resources in the VPC with the specified identifier.
-	VPCID *string `json:"-"`
+	VPCID *string `json:"vpc.id,omitempty"`
 
 	// Filters the collection to resources in the VPC with the specified CRN.
-	VPCCRN *string `json:"-"`
+	VPCCRN *string `json:"vpc.crn,omitempty"`
 
 	// Filters the collection to resources in the VPC with the exact specified name.
-	VPCName *string `json:"-"`
+	VPCName *string `json:"vpc.name,omitempty"`
 
 	// Filters the collection to flow log collectors that target the specified resource.
-	TargetID *string `json:"-"`
+	TargetID *string `json:"target.id,omitempty"`
 
 	// Filters the collection to flow log collectors that target the specified resource type.
-	TargetResourceType *string `json:"-"`
+	TargetResourceType *string `json:"target.resource_type,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -34758,10 +35218,10 @@ func (options *ListFlowLogCollectorsOptions) SetHeaders(param map[string]string)
 // ListIkePoliciesOptions : The ListIkePolicies options.
 type ListIkePoliciesOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -34793,7 +35253,7 @@ func (options *ListIkePoliciesOptions) SetHeaders(param map[string]string) *List
 // ListIkePolicyConnectionsOptions : The ListIkePolicyConnections options.
 type ListIkePolicyConnectionsOptions struct {
 	// The IKE policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -34821,20 +35281,20 @@ func (options *ListIkePolicyConnectionsOptions) SetHeaders(param map[string]stri
 // ListImagesOptions : The ListImages options.
 type ListImagesOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Filters the collection to resources with the exact specified name.
-	Name *string `json:"-"`
+	Name *string `json:"name,omitempty"`
 
 	// Filters the collection to images with the specified `visibility`.
-	Visibility *string `json:"-"`
+	Visibility *string `json:"visibility,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -34891,7 +35351,7 @@ func (options *ListImagesOptions) SetHeaders(param map[string]string) *ListImage
 // ListInstanceDisksOptions : The ListInstanceDisks options.
 type ListInstanceDisksOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -34919,16 +35379,16 @@ func (options *ListInstanceDisksOptions) SetHeaders(param map[string]string) *Li
 // ListInstanceGroupManagerActionsOptions : The ListInstanceGroupManagerActions options.
 type ListInstanceGroupManagerActionsOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager identifier.
-	InstanceGroupManagerID *string `json:"-" validate:"required,ne="`
+	InstanceGroupManagerID *string `json:"instance_group_manager_id" validate:"required,ne="`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -34975,16 +35435,16 @@ func (options *ListInstanceGroupManagerActionsOptions) SetHeaders(param map[stri
 // ListInstanceGroupManagerPoliciesOptions : The ListInstanceGroupManagerPolicies options.
 type ListInstanceGroupManagerPoliciesOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager identifier.
-	InstanceGroupManagerID *string `json:"-" validate:"required,ne="`
+	InstanceGroupManagerID *string `json:"instance_group_manager_id" validate:"required,ne="`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35031,13 +35491,13 @@ func (options *ListInstanceGroupManagerPoliciesOptions) SetHeaders(param map[str
 // ListInstanceGroupManagersOptions : The ListInstanceGroupManagers options.
 type ListInstanceGroupManagersOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35077,13 +35537,13 @@ func (options *ListInstanceGroupManagersOptions) SetHeaders(param map[string]str
 // ListInstanceGroupMembershipsOptions : The ListInstanceGroupMemberships options.
 type ListInstanceGroupMembershipsOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35123,10 +35583,10 @@ func (options *ListInstanceGroupMembershipsOptions) SetHeaders(param map[string]
 // ListInstanceGroupsOptions : The ListInstanceGroups options.
 type ListInstanceGroupsOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35158,10 +35618,10 @@ func (options *ListInstanceGroupsOptions) SetHeaders(param map[string]string) *L
 // ListInstanceNetworkInterfaceFloatingIpsOptions : The ListInstanceNetworkInterfaceFloatingIps options.
 type ListInstanceNetworkInterfaceFloatingIpsOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The network interface identifier.
-	NetworkInterfaceID *string `json:"-" validate:"required,ne="`
+	NetworkInterfaceID *string `json:"network_interface_id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35196,7 +35656,7 @@ func (options *ListInstanceNetworkInterfaceFloatingIpsOptions) SetHeaders(param 
 // ListInstanceNetworkInterfacesOptions : The ListInstanceNetworkInterfaces options.
 type ListInstanceNetworkInterfacesOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35260,7 +35720,7 @@ func (options *ListInstanceTemplatesOptions) SetHeaders(param map[string]string)
 // ListInstanceVolumeAttachmentsOptions : The ListInstanceVolumeAttachments options.
 type ListInstanceVolumeAttachmentsOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35288,44 +35748,44 @@ func (options *ListInstanceVolumeAttachmentsOptions) SetHeaders(param map[string
 // ListInstancesOptions : The ListInstances options.
 type ListInstancesOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Filters the collection to resources with the exact specified name.
-	Name *string `json:"-"`
+	Name *string `json:"name,omitempty"`
 
 	// Filters the collection to resources in the VPC with the specified identifier.
-	VPCID *string `json:"-"`
+	VPCID *string `json:"vpc.id,omitempty"`
 
 	// Filters the collection to resources in the VPC with the specified CRN.
-	VPCCRN *string `json:"-"`
+	VPCCRN *string `json:"vpc.crn,omitempty"`
 
 	// Filters the collection to resources in the VPC with the exact specified name.
-	VPCName *string `json:"-"`
+	VPCName *string `json:"vpc.name,omitempty"`
 
 	// Filters the collection to instances on the dedicated host with the specified identifier.
-	DedicatedHostID *string `json:"-"`
+	DedicatedHostID *string `json:"dedicated_host.id,omitempty"`
 
 	// Filters the collection to instances on the dedicated host with the specified CRN.
-	DedicatedHostCRN *string `json:"-"`
+	DedicatedHostCRN *string `json:"dedicated_host.crn,omitempty"`
 
 	// Filters the collection to instances on the dedicated host with the specified name.
-	DedicatedHostName *string `json:"-"`
+	DedicatedHostName *string `json:"dedicated_host.name,omitempty"`
 
 	// Filters the collection to instances in the placement group with the specified identifier.
-	PlacementGroupID *string `json:"-"`
+	PlacementGroupID *string `json:"placement_group.id,omitempty"`
 
 	// Filters the collection to instances in the placement group with the specified CRN.
-	PlacementGroupCRN *string `json:"-"`
+	PlacementGroupCRN *string `json:"placement_group.crn,omitempty"`
 
 	// Filters the collection to instances in the placement group with the specified name.
-	PlacementGroupName *string `json:"-"`
+	PlacementGroupName *string `json:"placement_group.name,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35423,10 +35883,10 @@ func (options *ListInstancesOptions) SetHeaders(param map[string]string) *ListIn
 // ListIpsecPoliciesOptions : The ListIpsecPolicies options.
 type ListIpsecPoliciesOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35458,7 +35918,7 @@ func (options *ListIpsecPoliciesOptions) SetHeaders(param map[string]string) *Li
 // ListIpsecPolicyConnectionsOptions : The ListIpsecPolicyConnections options.
 type ListIpsecPolicyConnectionsOptions struct {
 	// The IPsec policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35486,14 +35946,14 @@ func (options *ListIpsecPolicyConnectionsOptions) SetHeaders(param map[string]st
 // ListKeysOptions : The ListKeys options.
 type ListKeysOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35531,10 +35991,10 @@ func (options *ListKeysOptions) SetHeaders(param map[string]string) *ListKeysOpt
 // ListLoadBalancerListenerPoliciesOptions : The ListLoadBalancerListenerPolicies options.
 type ListLoadBalancerListenerPoliciesOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener identifier.
-	ListenerID *string `json:"-" validate:"required,ne="`
+	ListenerID *string `json:"listener_id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35569,13 +36029,13 @@ func (options *ListLoadBalancerListenerPoliciesOptions) SetHeaders(param map[str
 // ListLoadBalancerListenerPolicyRulesOptions : The ListLoadBalancerListenerPolicyRules options.
 type ListLoadBalancerListenerPolicyRulesOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener identifier.
-	ListenerID *string `json:"-" validate:"required,ne="`
+	ListenerID *string `json:"listener_id" validate:"required,ne="`
 
 	// The policy identifier.
-	PolicyID *string `json:"-" validate:"required,ne="`
+	PolicyID *string `json:"policy_id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35617,7 +36077,7 @@ func (options *ListLoadBalancerListenerPolicyRulesOptions) SetHeaders(param map[
 // ListLoadBalancerListenersOptions : The ListLoadBalancerListeners options.
 type ListLoadBalancerListenersOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35645,10 +36105,10 @@ func (options *ListLoadBalancerListenersOptions) SetHeaders(param map[string]str
 // ListLoadBalancerPoolMembersOptions : The ListLoadBalancerPoolMembers options.
 type ListLoadBalancerPoolMembersOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The pool identifier.
-	PoolID *string `json:"-" validate:"required,ne="`
+	PoolID *string `json:"pool_id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35683,7 +36143,7 @@ func (options *ListLoadBalancerPoolMembersOptions) SetHeaders(param map[string]s
 // ListLoadBalancerPoolsOptions : The ListLoadBalancerPools options.
 type ListLoadBalancerPoolsOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35711,10 +36171,10 @@ func (options *ListLoadBalancerPoolsOptions) SetHeaders(param map[string]string)
 // ListLoadBalancerProfilesOptions : The ListLoadBalancerProfiles options.
 type ListLoadBalancerProfilesOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35746,10 +36206,10 @@ func (options *ListLoadBalancerProfilesOptions) SetHeaders(param map[string]stri
 // ListLoadBalancersOptions : The ListLoadBalancers options.
 type ListLoadBalancersOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35781,16 +36241,16 @@ func (options *ListLoadBalancersOptions) SetHeaders(param map[string]string) *Li
 // ListNetworkACLRulesOptions : The ListNetworkACLRules options.
 type ListNetworkACLRulesOptions struct {
 	// The network ACL identifier.
-	NetworkACLID *string `json:"-" validate:"required,ne="`
+	NetworkACLID *string `json:"network_acl_id" validate:"required,ne="`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to rules with the specified direction.
-	Direction *string `json:"-"`
+	Direction *string `json:"direction,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35843,14 +36303,14 @@ func (options *ListNetworkACLRulesOptions) SetHeaders(param map[string]string) *
 // ListNetworkAclsOptions : The ListNetworkAcls options.
 type ListNetworkAclsOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35888,10 +36348,10 @@ func (options *ListNetworkAclsOptions) SetHeaders(param map[string]string) *List
 // ListOperatingSystemsOptions : The ListOperatingSystems options.
 type ListOperatingSystemsOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35923,10 +36383,10 @@ func (options *ListOperatingSystemsOptions) SetHeaders(param map[string]string) 
 // ListPlacementGroupsOptions : The ListPlacementGroups options.
 type ListPlacementGroupsOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -35958,14 +36418,14 @@ func (options *ListPlacementGroupsOptions) SetHeaders(param map[string]string) *
 // ListPublicGatewaysOptions : The ListPublicGateways options.
 type ListPublicGatewaysOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36003,7 +36463,7 @@ func (options *ListPublicGatewaysOptions) SetHeaders(param map[string]string) *L
 // ListRegionZonesOptions : The ListRegionZones options.
 type ListRegionZonesOptions struct {
 	// The region name.
-	RegionName *string `json:"-" validate:"required,ne="`
+	RegionName *string `json:"region_name" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36049,13 +36509,13 @@ func (options *ListRegionsOptions) SetHeaders(param map[string]string) *ListRegi
 // ListSecurityGroupNetworkInterfacesOptions : The ListSecurityGroupNetworkInterfaces options.
 type ListSecurityGroupNetworkInterfacesOptions struct {
 	// The security group identifier.
-	SecurityGroupID *string `json:"-" validate:"required,ne="`
+	SecurityGroupID *string `json:"security_group_id" validate:"required,ne="`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36095,7 +36555,7 @@ func (options *ListSecurityGroupNetworkInterfacesOptions) SetHeaders(param map[s
 // ListSecurityGroupRulesOptions : The ListSecurityGroupRules options.
 type ListSecurityGroupRulesOptions struct {
 	// The security group identifier.
-	SecurityGroupID *string `json:"-" validate:"required,ne="`
+	SecurityGroupID *string `json:"security_group_id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36123,13 +36583,13 @@ func (options *ListSecurityGroupRulesOptions) SetHeaders(param map[string]string
 // ListSecurityGroupTargetsOptions : The ListSecurityGroupTargets options.
 type ListSecurityGroupTargetsOptions struct {
 	// The security group identifier.
-	SecurityGroupID *string `json:"-" validate:"required,ne="`
+	SecurityGroupID *string `json:"security_group_id" validate:"required,ne="`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36169,23 +36629,23 @@ func (options *ListSecurityGroupTargetsOptions) SetHeaders(param map[string]stri
 // ListSecurityGroupsOptions : The ListSecurityGroups options.
 type ListSecurityGroupsOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Filters the collection to resources in the VPC with the specified identifier.
-	VPCID *string `json:"-"`
+	VPCID *string `json:"vpc.id,omitempty"`
 
 	// Filters the collection to resources in the VPC with the specified CRN.
-	VPCCRN *string `json:"-"`
+	VPCCRN *string `json:"vpc.crn,omitempty"`
 
 	// Filters the collection to resources in the VPC with the exact specified name.
-	VPCName *string `json:"-"`
+	VPCName *string `json:"vpc.name,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36241,40 +36701,40 @@ func (options *ListSecurityGroupsOptions) SetHeaders(param map[string]string) *L
 // ListSnapshotsOptions : The ListSnapshots options.
 type ListSnapshotsOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Filters the collection to resources with the exact specified name.
-	Name *string `json:"-"`
+	Name *string `json:"name,omitempty"`
 
 	// Filters the collection to resources with the source volume with the specified identifier.
-	SourceVolumeID *string `json:"-"`
+	SourceVolumeID *string `json:"source_volume.id,omitempty"`
 
 	// Filters the collection to resources with the source volume with the specified CRN.
-	SourceVolumeCRN *string `json:"-"`
+	SourceVolumeCRN *string `json:"source_volume.crn,omitempty"`
 
 	// Filters the collection to resources with the source image with the specified identifier.
 	//
 	// This parameter also supports the values `null` and `not:null` which filter the collection to resources which have no
 	// source image or any existent source image, respectively.
-	SourceImageID *string `json:"-"`
+	SourceImageID *string `json:"source_image.id,omitempty"`
 
 	// Filters the collection to resources with the source volume with the specified CRN.
 	//
 	// This parameter also supports the values `null` and `not:null` which filter the collection to resources which have no
 	// source image or any existent source image, respectively.
-	SourceImageCRN *string `json:"-"`
+	SourceImageCRN *string `json:"source_image.crn,omitempty"`
 
 	// Sorts the returned collection by the specified property name in ascending order. A `-` may be prepended to the name
 	// to sort in descending order. For example, the value `-created_at` sorts the collection by the `created_at` property
 	// in descending order, and the value `name` sorts it by the `name` property in ascending order.
-	Sort *string `json:"-"`
+	Sort *string `json:"sort,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36357,18 +36817,18 @@ func (options *ListSnapshotsOptions) SetHeaders(param map[string]string) *ListSn
 // ListSubnetReservedIpsOptions : The ListSubnetReservedIps options.
 type ListSubnetReservedIpsOptions struct {
 	// The subnet identifier.
-	SubnetID *string `json:"-" validate:"required,ne="`
+	SubnetID *string `json:"subnet_id" validate:"required,ne="`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Sorts the returned collection by the specified property name in ascending order. A `-` may be prepended to the name
 	// to sort in descending order. For example, the value `-created_at` sorts the collection by the `created_at` property
 	// in descending order, and the value `name` sorts it by the `name` property in ascending order.
-	Sort *string `json:"-"`
+	Sort *string `json:"sort,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36424,20 +36884,20 @@ func (options *ListSubnetReservedIpsOptions) SetHeaders(param map[string]string)
 // ListSubnetsOptions : The ListSubnets options.
 type ListSubnetsOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Filters the collection to subnets attached to the routing table with the specified identifier.
-	RoutingTableID *string `json:"-"`
+	RoutingTableID *string `json:"routing_table.id,omitempty"`
 
 	// Filters the collection to subnets attached to the routing table with the specified name.
-	RoutingTableName *string `json:"-"`
+	RoutingTableName *string `json:"routing_table.name,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36487,10 +36947,10 @@ func (options *ListSubnetsOptions) SetHeaders(param map[string]string) *ListSubn
 // ListVolumeProfilesOptions : The ListVolumeProfiles options.
 type ListVolumeProfilesOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36522,16 +36982,16 @@ func (options *ListVolumeProfilesOptions) SetHeaders(param map[string]string) *L
 // ListVolumesOptions : The ListVolumes options.
 type ListVolumesOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources with the exact specified name.
-	Name *string `json:"-"`
+	Name *string `json:"name,omitempty"`
 
 	// Filters the collection to resources in the zone with the exact specified name.
-	ZoneName *string `json:"-"`
+	ZoneName *string `json:"zone.name,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36575,13 +37035,13 @@ func (options *ListVolumesOptions) SetHeaders(param map[string]string) *ListVolu
 // ListVPCAddressPrefixesOptions : The ListVPCAddressPrefixes options.
 type ListVPCAddressPrefixesOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36621,16 +37081,16 @@ func (options *ListVPCAddressPrefixesOptions) SetHeaders(param map[string]string
 // ListVPCRoutesOptions : The ListVPCRoutes options.
 type ListVPCRoutesOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// Filters the collection to resources in the zone with the exact specified name.
-	ZoneName *string `json:"-"`
+	ZoneName *string `json:"zone.name,omitempty"`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36676,16 +37136,16 @@ func (options *ListVPCRoutesOptions) SetHeaders(param map[string]string) *ListVP
 // ListVPCRoutingTableRoutesOptions : The ListVPCRoutingTableRoutes options.
 type ListVPCRoutingTableRoutesOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The routing table identifier.
-	RoutingTableID *string `json:"-" validate:"required,ne="`
+	RoutingTableID *string `json:"routing_table_id" validate:"required,ne="`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36732,17 +37192,17 @@ func (options *ListVPCRoutingTableRoutesOptions) SetHeaders(param map[string]str
 // ListVPCRoutingTablesOptions : The ListVPCRoutingTables options.
 type ListVPCRoutingTablesOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// If the supplied value is `true`, filters the routing table collection to only the default routing table. If the
 	// supplied value is `false`, filters the routing table collection to exclude the default routing table.
-	IsDefault *bool `json:"-"`
+	IsDefault *bool `json:"is_default,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36788,17 +37248,17 @@ func (options *ListVPCRoutingTablesOptions) SetHeaders(param map[string]string) 
 // ListVpcsOptions : The ListVpcs options.
 type ListVpcsOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Filters the collection to VPCs with the specified `classic_access` value.
-	ClassicAccess *bool `json:"-"`
+	ClassicAccess *bool `json:"classic_access,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36842,10 +37302,10 @@ func (options *ListVpcsOptions) SetHeaders(param map[string]string) *ListVpcsOpt
 // ListVPNGatewayConnectionLocalCIDRsOptions : The ListVPNGatewayConnectionLocalCIDRs options.
 type ListVPNGatewayConnectionLocalCIDRsOptions struct {
 	// The VPN gateway identifier.
-	VPNGatewayID *string `json:"-" validate:"required,ne="`
+	VPNGatewayID *string `json:"vpn_gateway_id" validate:"required,ne="`
 
 	// The VPN gateway connection identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36880,10 +37340,10 @@ func (options *ListVPNGatewayConnectionLocalCIDRsOptions) SetHeaders(param map[s
 // ListVPNGatewayConnectionPeerCIDRsOptions : The ListVPNGatewayConnectionPeerCIDRs options.
 type ListVPNGatewayConnectionPeerCIDRsOptions struct {
 	// The VPN gateway identifier.
-	VPNGatewayID *string `json:"-" validate:"required,ne="`
+	VPNGatewayID *string `json:"vpn_gateway_id" validate:"required,ne="`
 
 	// The VPN gateway connection identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36918,10 +37378,10 @@ func (options *ListVPNGatewayConnectionPeerCIDRsOptions) SetHeaders(param map[st
 // ListVPNGatewayConnectionsOptions : The ListVPNGatewayConnections options.
 type ListVPNGatewayConnectionsOptions struct {
 	// The VPN gateway identifier.
-	VPNGatewayID *string `json:"-" validate:"required,ne="`
+	VPNGatewayID *string `json:"vpn_gateway_id" validate:"required,ne="`
 
 	// Filters the collection to VPN gateway connections with the specified status.
-	Status *string `json:"-"`
+	Status *string `json:"status,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -36955,17 +37415,17 @@ func (options *ListVPNGatewayConnectionsOptions) SetHeaders(param map[string]str
 // ListVPNGatewaysOptions : The ListVPNGateways options.
 type ListVPNGatewaysOptions struct {
 	// A server-supplied token determining what resource to start the page on.
-	Start *string `json:"-"`
+	Start *string `json:"start,omitempty"`
 
 	// The number of resources to return on a page.
-	Limit *int64 `json:"-"`
+	Limit *int64 `json:"limit,omitempty"`
 
 	// Filters the collection to resources within one of the resource groups identified in a comma-separated list of
 	// resource group identifiers.
-	ResourceGroupID *string `json:"-"`
+	ResourceGroupID *string `json:"resource_group.id,omitempty"`
 
 	// Filters the collection to VPN gateways with the specified mode.
-	Mode *string `json:"-"`
+	Mode *string `json:"mode,omitempty"`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -37065,6 +37525,11 @@ type LoadBalancer struct {
 	// The resource group for this load balancer.
 	ResourceGroup *ResourceGroupReference `json:"resource_group" validate:"required"`
 
+	// Indicates whether route mode is enabled for this load balancer.
+	//
+	// At present, public load balancers are not supported with route mode enabled.
+	RouteMode *bool `json:"route_mode" validate:"required"`
+
 	// The security groups targeting this load balancer.
 	//
 	// Applicable only for load balancers that support security groups.
@@ -37159,6 +37624,10 @@ func UnmarshalLoadBalancer(m map[string]json.RawMessage, result interface{}) (er
 		return
 	}
 	err = core.UnmarshalModel(m, "resource_group", &obj.ResourceGroup, UnmarshalResourceGroupReference)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "route_mode", &obj.RouteMode)
 	if err != nil {
 		return
 	}
@@ -37348,9 +37817,19 @@ type LoadBalancerListener struct {
 	// The policies for this listener.
 	Policies []LoadBalancerListenerPolicyReference `json:"policies,omitempty"`
 
-	// The listener port number. Each listener in the load balancer must have a unique
-	// `port` and `protocol` combination.
+	// The listener port number, or the inclusive lower bound of the port range. Each listener in the load balancer must
+	// have a unique `port` and `protocol` combination.
 	Port *int64 `json:"port" validate:"required"`
+
+	// The inclusive upper bound of the range of ports used by this listener.
+	//
+	// Only load balancers in the `network` family support more than one port per listener.
+	PortMax *int64 `json:"port_max" validate:"required"`
+
+	// The inclusive lower bound of the range of ports used by this listener.
+	//
+	// Only load balancers in the `network` family support more than one port per listener.
+	PortMin *int64 `json:"port_min" validate:"required"`
 
 	// The listener protocol. Load balancers in the `network` family support `tcp`. Load balancers in the `application`
 	// family support `tcp`, `http`, and `https`. Each listener in the load balancer must have a unique `port` and
@@ -37422,6 +37901,14 @@ func UnmarshalLoadBalancerListener(m map[string]json.RawMessage, result interfac
 		return
 	}
 	err = core.UnmarshalPrimitive(m, "port", &obj.Port)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "port_max", &obj.PortMax)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "port_min", &obj.PortMin)
 	if err != nil {
 		return
 	}
@@ -37620,9 +38107,25 @@ type LoadBalancerListenerPatch struct {
 	// Specify `null` to remove any existing https redirect.
 	HTTPSRedirect *LoadBalancerListenerHTTPSRedirectPatch `json:"https_redirect,omitempty"`
 
-	// The listener port number. Each listener in the load balancer must have a unique
-	// `port` and `protocol` combination.
+	// The listener port number, or the inclusive lower bound of the port range. Each listener in the load balancer must
+	// have a unique `port` and `protocol` combination.
+	//
+	// Not supported for load balancers operating with route mode enabled.
 	Port *int64 `json:"port,omitempty"`
+
+	// The inclusive upper bound of the range of ports used by this listener. Must not be less than `port_min`.
+	//
+	// At present, only load balancers operating with route mode enabled support different values for `port_min` and
+	// `port_max`.  When route mode is enabled, only a value of
+	// `65535` is supported for `port_max`.
+	PortMax *int64 `json:"port_max,omitempty"`
+
+	// The inclusive lower bound of the range of ports used by this listener. Must not be greater than `port_max`.
+	//
+	// At present, only load balancers operating with route mode enabled support different values for `port_min` and
+	// `port_max`.  When route mode is enabled, only a value of
+	// `1` is supported for `port_min`.
+	PortMin *int64 `json:"port_min,omitempty"`
 
 	// The listener protocol. Each listener in the load balancer must have a unique `port` and `protocol` combination.
 	// Additional restrictions:
@@ -37668,6 +38171,14 @@ func UnmarshalLoadBalancerListenerPatch(m map[string]json.RawMessage, result int
 		return
 	}
 	err = core.UnmarshalPrimitive(m, "port", &obj.Port)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "port_max", &obj.PortMax)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "port_min", &obj.PortMin)
 	if err != nil {
 		return
 	}
@@ -38542,9 +39053,25 @@ type LoadBalancerListenerPrototypeLoadBalancerContext struct {
 	// The default pool associated with the listener.
 	DefaultPool *LoadBalancerPoolIdentityByName `json:"default_pool,omitempty"`
 
-	// The listener port number. Each listener in the load balancer must have a unique
-	// `port` and `protocol` combination.
-	Port *int64 `json:"port" validate:"required"`
+	// The listener port number, or the inclusive lower bound of the port range. Each listener in the load balancer must
+	// have a unique `port` and `protocol` combination.
+	//
+	// Not supported for load balancers operating with route mode enabled.
+	Port *int64 `json:"port,omitempty"`
+
+	// The inclusive upper bound of the range of ports used by this listener. Must not be less than `port_min`.
+	//
+	// At present, only load balancers operating with route mode enabled support different values for `port_min` and
+	// `port_max`.  When route mode is enabled, only a value of
+	// `65535` is supported for `port_max`.
+	PortMax *int64 `json:"port_max,omitempty"`
+
+	// The inclusive lower bound of the range of ports used by this listener. Must not be greater than `port_max`.
+	//
+	// At present, only load balancers operating with route mode enabled support different values for `port_min` and
+	// `port_max`.  When route mode is enabled, only a value of
+	// `1` is supported for `port_min`.
+	PortMin *int64 `json:"port_min,omitempty"`
 
 	// The listener protocol. Load balancers in the `network` family support `tcp`. Load balancers in the `application`
 	// family support `tcp`, `http`, and `https`. Each listener in the load balancer must have a unique `port` and
@@ -38563,9 +39090,8 @@ const (
 )
 
 // NewLoadBalancerListenerPrototypeLoadBalancerContext : Instantiate LoadBalancerListenerPrototypeLoadBalancerContext (Generic Model Constructor)
-func (*VpcV1) NewLoadBalancerListenerPrototypeLoadBalancerContext(port int64, protocol string) (_model *LoadBalancerListenerPrototypeLoadBalancerContext, err error) {
+func (*VpcV1) NewLoadBalancerListenerPrototypeLoadBalancerContext(protocol string) (_model *LoadBalancerListenerPrototypeLoadBalancerContext, err error) {
 	_model = &LoadBalancerListenerPrototypeLoadBalancerContext{
-		Port:     core.Int64Ptr(port),
 		Protocol: core.StringPtr(protocol),
 	}
 	err = core.ValidateStruct(_model, "required parameters")
@@ -38588,6 +39114,14 @@ func UnmarshalLoadBalancerListenerPrototypeLoadBalancerContext(m map[string]json
 		return
 	}
 	err = core.UnmarshalPrimitive(m, "port", &obj.Port)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "port_max", &obj.PortMax)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "port_min", &obj.PortMin)
 	if err != nil {
 		return
 	}
@@ -39939,6 +40473,8 @@ type LoadBalancerProfile struct {
 	// The globally unique name for this load balancer profile.
 	Name *string `json:"name" validate:"required"`
 
+	RouteModeSupported LoadBalancerProfileRouteModeSupportedIntf `json:"route_mode_supported" validate:"required"`
+
 	SecurityGroupsSupported LoadBalancerProfileSecurityGroupsSupportedIntf `json:"security_groups_supported" validate:"required"`
 }
 
@@ -39958,6 +40494,10 @@ func UnmarshalLoadBalancerProfile(m map[string]json.RawMessage, result interface
 		return
 	}
 	err = core.UnmarshalPrimitive(m, "name", &obj.Name)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalModel(m, "route_mode_supported", &obj.RouteModeSupported, UnmarshalLoadBalancerProfileRouteModeSupported)
 	if err != nil {
 		return
 	}
@@ -40150,6 +40690,47 @@ func UnmarshalLoadBalancerProfileReference(m map[string]json.RawMessage, result 
 		return
 	}
 	err = core.UnmarshalPrimitive(m, "name", &obj.Name)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// LoadBalancerProfileRouteModeSupported : LoadBalancerProfileRouteModeSupported struct
+// Models which "extend" this model:
+// - LoadBalancerProfileRouteModeSupportedFixed
+// - LoadBalancerProfileRouteModeSupportedDependent
+type LoadBalancerProfileRouteModeSupported struct {
+	// The type for this profile field.
+	Type *string `json:"type,omitempty"`
+
+	// The value for this profile field.
+	Value *bool `json:"value,omitempty"`
+}
+
+// Constants associated with the LoadBalancerProfileRouteModeSupported.Type property.
+// The type for this profile field.
+const (
+	LoadBalancerProfileRouteModeSupportedTypeFixedConst = "fixed"
+)
+
+func (*LoadBalancerProfileRouteModeSupported) isaLoadBalancerProfileRouteModeSupported() bool {
+	return true
+}
+
+type LoadBalancerProfileRouteModeSupportedIntf interface {
+	isaLoadBalancerProfileRouteModeSupported() bool
+}
+
+// UnmarshalLoadBalancerProfileRouteModeSupported unmarshals an instance of LoadBalancerProfileRouteModeSupported from the specified map of raw messages.
+func UnmarshalLoadBalancerProfileRouteModeSupported(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(LoadBalancerProfileRouteModeSupported)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "value", &obj.Value)
 	if err != nil {
 		return
 	}
@@ -42890,10 +43471,10 @@ func UnmarshalRegionReference(m map[string]json.RawMessage, result interface{}) 
 // RemoveEndpointGatewayIPOptions : The RemoveEndpointGatewayIP options.
 type RemoveEndpointGatewayIPOptions struct {
 	// The endpoint gateway identifier.
-	EndpointGatewayID *string `json:"-" validate:"required,ne="`
+	EndpointGatewayID *string `json:"endpoint_gateway_id" validate:"required,ne="`
 
 	// The reserved IP identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -42928,13 +43509,13 @@ func (options *RemoveEndpointGatewayIPOptions) SetHeaders(param map[string]strin
 // RemoveInstanceNetworkInterfaceFloatingIPOptions : The RemoveInstanceNetworkInterfaceFloatingIP options.
 type RemoveInstanceNetworkInterfaceFloatingIPOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The network interface identifier.
-	NetworkInterfaceID *string `json:"-" validate:"required,ne="`
+	NetworkInterfaceID *string `json:"network_interface_id" validate:"required,ne="`
 
 	// The floating IP identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -42976,10 +43557,10 @@ func (options *RemoveInstanceNetworkInterfaceFloatingIPOptions) SetHeaders(param
 // RemoveSecurityGroupNetworkInterfaceOptions : The RemoveSecurityGroupNetworkInterface options.
 type RemoveSecurityGroupNetworkInterfaceOptions struct {
 	// The security group identifier.
-	SecurityGroupID *string `json:"-" validate:"required,ne="`
+	SecurityGroupID *string `json:"security_group_id" validate:"required,ne="`
 
 	// The network interface identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -43014,16 +43595,16 @@ func (options *RemoveSecurityGroupNetworkInterfaceOptions) SetHeaders(param map[
 // RemoveVPNGatewayConnectionLocalCIDROptions : The RemoveVPNGatewayConnectionLocalCIDR options.
 type RemoveVPNGatewayConnectionLocalCIDROptions struct {
 	// The VPN gateway identifier.
-	VPNGatewayID *string `json:"-" validate:"required,ne="`
+	VPNGatewayID *string `json:"vpn_gateway_id" validate:"required,ne="`
 
 	// The VPN gateway connection identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The address prefix part of the CIDR.
-	CIDRPrefix *string `json:"-" validate:"required,ne="`
+	CIDRPrefix *string `json:"cidr_prefix" validate:"required,ne="`
 
 	// The prefix length part of the CIDR.
-	PrefixLength *string `json:"-" validate:"required,ne="`
+	PrefixLength *string `json:"prefix_length" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -43072,16 +43653,16 @@ func (options *RemoveVPNGatewayConnectionLocalCIDROptions) SetHeaders(param map[
 // RemoveVPNGatewayConnectionPeerCIDROptions : The RemoveVPNGatewayConnectionPeerCIDR options.
 type RemoveVPNGatewayConnectionPeerCIDROptions struct {
 	// The VPN gateway identifier.
-	VPNGatewayID *string `json:"-" validate:"required,ne="`
+	VPNGatewayID *string `json:"vpn_gateway_id" validate:"required,ne="`
 
 	// The VPN gateway connection identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The address prefix part of the CIDR.
-	CIDRPrefix *string `json:"-" validate:"required,ne="`
+	CIDRPrefix *string `json:"cidr_prefix" validate:"required,ne="`
 
 	// The prefix length part of the CIDR.
-	PrefixLength *string `json:"-" validate:"required,ne="`
+	PrefixLength *string `json:"prefix_length" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -43130,10 +43711,10 @@ func (options *RemoveVPNGatewayConnectionPeerCIDROptions) SetHeaders(param map[s
 // ReplaceLoadBalancerPoolMembersOptions : The ReplaceLoadBalancerPoolMembers options.
 type ReplaceLoadBalancerPoolMembersOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The pool identifier.
-	PoolID *string `json:"-" validate:"required,ne="`
+	PoolID *string `json:"pool_id" validate:"required,ne="`
 
 	// The member prototype objects for this pool.
 	Members []LoadBalancerPoolMemberPrototype `json:"members" validate:"required"`
@@ -43178,7 +43759,7 @@ func (options *ReplaceLoadBalancerPoolMembersOptions) SetHeaders(param map[strin
 // ReplaceSubnetNetworkACLOptions : The ReplaceSubnetNetworkACL options.
 type ReplaceSubnetNetworkACLOptions struct {
 	// The subnet identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The network ACL identity.
 	NetworkACLIdentity NetworkACLIdentityIntf `json:"NetworkACLIdentity" validate:"required"`
@@ -43216,7 +43797,7 @@ func (options *ReplaceSubnetNetworkACLOptions) SetHeaders(param map[string]strin
 // ReplaceSubnetRoutingTableOptions : The ReplaceSubnetRoutingTable options.
 type ReplaceSubnetRoutingTableOptions struct {
 	// The subnet identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The routing table identity.
 	RoutingTableIdentity RoutingTableIdentityIntf `json:"RoutingTableIdentity" validate:"required"`
@@ -45221,7 +45802,7 @@ type SecurityGroupRulePrototype struct {
 	IPVersion *string `json:"ip_version,omitempty"`
 
 	// The protocol to enforce.
-	Protocol *string `json:"protocol,omitempty"`
+	Protocol *string `json:"protocol" validate:"required"`
 
 	// The IP addresses or security groups from which this rule will allow traffic (or to
 	// which, for outbound rules). Can be specified as an IP address, a CIDR block, or a
@@ -45669,7 +46250,7 @@ func UnmarshalSecurityGroupTargetReference(m map[string]json.RawMessage, result 
 // SetSubnetPublicGatewayOptions : The SetSubnetPublicGateway options.
 type SetSubnetPublicGatewayOptions struct {
 	// The subnet identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The public gateway identity.
 	PublicGatewayIdentity PublicGatewayIdentityIntf `json:"PublicGatewayIdentity" validate:"required"`
@@ -46601,7 +47182,7 @@ func UnmarshalSubnetReferenceDeleted(m map[string]json.RawMessage, result interf
 // UnsetSubnetPublicGatewayOptions : The UnsetSubnetPublicGateway options.
 type UnsetSubnetPublicGatewayOptions struct {
 	// The subnet identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// Allows users to set headers on API requests
 	Headers map[string]string
@@ -46629,10 +47210,10 @@ func (options *UnsetSubnetPublicGatewayOptions) SetHeaders(param map[string]stri
 // UpdateDedicatedHostDiskOptions : The UpdateDedicatedHostDisk options.
 type UpdateDedicatedHostDiskOptions struct {
 	// The dedicated host identifier.
-	DedicatedHostID *string `json:"-" validate:"required,ne="`
+	DedicatedHostID *string `json:"dedicated_host_id" validate:"required,ne="`
 
 	// The dedicated host disk identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The dedicated host disk patch.
 	DedicatedHostDiskPatch map[string]interface{} `json:"DedicatedHostDisk_patch" validate:"required"`
@@ -46677,7 +47258,7 @@ func (options *UpdateDedicatedHostDiskOptions) SetHeaders(param map[string]strin
 // UpdateDedicatedHostGroupOptions : The UpdateDedicatedHostGroup options.
 type UpdateDedicatedHostGroupOptions struct {
 	// The dedicated host group identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The dedicated host group patch.
 	DedicatedHostGroupPatch map[string]interface{} `json:"DedicatedHostGroup_patch" validate:"required"`
@@ -46715,7 +47296,7 @@ func (options *UpdateDedicatedHostGroupOptions) SetHeaders(param map[string]stri
 // UpdateDedicatedHostOptions : The UpdateDedicatedHost options.
 type UpdateDedicatedHostOptions struct {
 	// The dedicated host identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The dedicated host patch.
 	DedicatedHostPatch map[string]interface{} `json:"DedicatedHost_patch" validate:"required"`
@@ -46753,7 +47334,7 @@ func (options *UpdateDedicatedHostOptions) SetHeaders(param map[string]string) *
 // UpdateEndpointGatewayOptions : The UpdateEndpointGateway options.
 type UpdateEndpointGatewayOptions struct {
 	// The endpoint gateway identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The endpoint gateway patch.
 	EndpointGatewayPatch map[string]interface{} `json:"EndpointGateway_patch" validate:"required"`
@@ -46791,7 +47372,7 @@ func (options *UpdateEndpointGatewayOptions) SetHeaders(param map[string]string)
 // UpdateFloatingIPOptions : The UpdateFloatingIP options.
 type UpdateFloatingIPOptions struct {
 	// The floating IP identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The floating IP patch.
 	FloatingIPPatch map[string]interface{} `json:"FloatingIP_patch" validate:"required"`
@@ -46829,7 +47410,7 @@ func (options *UpdateFloatingIPOptions) SetHeaders(param map[string]string) *Upd
 // UpdateFlowLogCollectorOptions : The UpdateFlowLogCollector options.
 type UpdateFlowLogCollectorOptions struct {
 	// The flow log collector identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The flow log collector patch.
 	FlowLogCollectorPatch map[string]interface{} `json:"FlowLogCollector_patch" validate:"required"`
@@ -46867,7 +47448,7 @@ func (options *UpdateFlowLogCollectorOptions) SetHeaders(param map[string]string
 // UpdateIkePolicyOptions : The UpdateIkePolicy options.
 type UpdateIkePolicyOptions struct {
 	// The IKE policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The IKE policy patch.
 	IkePolicyPatch map[string]interface{} `json:"IKEPolicy_patch" validate:"required"`
@@ -46905,7 +47486,7 @@ func (options *UpdateIkePolicyOptions) SetHeaders(param map[string]string) *Upda
 // UpdateImageOptions : The UpdateImage options.
 type UpdateImageOptions struct {
 	// The image identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The image patch.
 	ImagePatch map[string]interface{} `json:"Image_patch" validate:"required"`
@@ -46943,10 +47524,10 @@ func (options *UpdateImageOptions) SetHeaders(param map[string]string) *UpdateIm
 // UpdateInstanceDiskOptions : The UpdateInstanceDisk options.
 type UpdateInstanceDiskOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The instance disk identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The instance disk patch.
 	InstanceDiskPatch map[string]interface{} `json:"InstanceDisk_patch" validate:"required"`
@@ -46991,13 +47572,13 @@ func (options *UpdateInstanceDiskOptions) SetHeaders(param map[string]string) *U
 // UpdateInstanceGroupManagerActionOptions : The UpdateInstanceGroupManagerAction options.
 type UpdateInstanceGroupManagerActionOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager identifier.
-	InstanceGroupManagerID *string `json:"-" validate:"required,ne="`
+	InstanceGroupManagerID *string `json:"instance_group_manager_id" validate:"required,ne="`
 
 	// The instance group manager action identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The instance group manager action patch.
 	InstanceGroupManagerActionPatch map[string]interface{} `json:"InstanceGroupManagerAction_patch" validate:"required"`
@@ -47049,10 +47630,10 @@ func (options *UpdateInstanceGroupManagerActionOptions) SetHeaders(param map[str
 // UpdateInstanceGroupManagerOptions : The UpdateInstanceGroupManager options.
 type UpdateInstanceGroupManagerOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The instance group manager patch.
 	InstanceGroupManagerPatch map[string]interface{} `json:"InstanceGroupManager_patch" validate:"required"`
@@ -47097,13 +47678,13 @@ func (options *UpdateInstanceGroupManagerOptions) SetHeaders(param map[string]st
 // UpdateInstanceGroupManagerPolicyOptions : The UpdateInstanceGroupManagerPolicy options.
 type UpdateInstanceGroupManagerPolicyOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group manager identifier.
-	InstanceGroupManagerID *string `json:"-" validate:"required,ne="`
+	InstanceGroupManagerID *string `json:"instance_group_manager_id" validate:"required,ne="`
 
 	// The instance group manager policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The instance group manager policy patch.
 	InstanceGroupManagerPolicyPatch map[string]interface{} `json:"InstanceGroupManagerPolicy_patch" validate:"required"`
@@ -47155,10 +47736,10 @@ func (options *UpdateInstanceGroupManagerPolicyOptions) SetHeaders(param map[str
 // UpdateInstanceGroupMembershipOptions : The UpdateInstanceGroupMembership options.
 type UpdateInstanceGroupMembershipOptions struct {
 	// The instance group identifier.
-	InstanceGroupID *string `json:"-" validate:"required,ne="`
+	InstanceGroupID *string `json:"instance_group_id" validate:"required,ne="`
 
 	// The instance group membership identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The instance group membership patch.
 	InstanceGroupMembershipPatch map[string]interface{} `json:"InstanceGroupMembership_patch" validate:"required"`
@@ -47203,7 +47784,7 @@ func (options *UpdateInstanceGroupMembershipOptions) SetHeaders(param map[string
 // UpdateInstanceGroupOptions : The UpdateInstanceGroup options.
 type UpdateInstanceGroupOptions struct {
 	// The instance group identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The instance group patch.
 	InstanceGroupPatch map[string]interface{} `json:"InstanceGroup_patch" validate:"required"`
@@ -47241,10 +47822,10 @@ func (options *UpdateInstanceGroupOptions) SetHeaders(param map[string]string) *
 // UpdateInstanceNetworkInterfaceOptions : The UpdateInstanceNetworkInterface options.
 type UpdateInstanceNetworkInterfaceOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The network interface identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The network interface patch.
 	NetworkInterfacePatch map[string]interface{} `json:"NetworkInterface_patch" validate:"required"`
@@ -47289,7 +47870,7 @@ func (options *UpdateInstanceNetworkInterfaceOptions) SetHeaders(param map[strin
 // UpdateInstanceOptions : The UpdateInstance options.
 type UpdateInstanceOptions struct {
 	// The instance identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The instance patch.
 	InstancePatch map[string]interface{} `json:"Instance_patch" validate:"required"`
@@ -47327,7 +47908,7 @@ func (options *UpdateInstanceOptions) SetHeaders(param map[string]string) *Updat
 // UpdateInstanceTemplateOptions : The UpdateInstanceTemplate options.
 type UpdateInstanceTemplateOptions struct {
 	// The instance template identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The instance template patch.
 	InstanceTemplatePatch map[string]interface{} `json:"InstanceTemplate_patch" validate:"required"`
@@ -47365,10 +47946,10 @@ func (options *UpdateInstanceTemplateOptions) SetHeaders(param map[string]string
 // UpdateInstanceVolumeAttachmentOptions : The UpdateInstanceVolumeAttachment options.
 type UpdateInstanceVolumeAttachmentOptions struct {
 	// The instance identifier.
-	InstanceID *string `json:"-" validate:"required,ne="`
+	InstanceID *string `json:"instance_id" validate:"required,ne="`
 
 	// The volume attachment identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The volume attachment patch.
 	VolumeAttachmentPatch map[string]interface{} `json:"VolumeAttachment_patch" validate:"required"`
@@ -47413,7 +47994,7 @@ func (options *UpdateInstanceVolumeAttachmentOptions) SetHeaders(param map[strin
 // UpdateIpsecPolicyOptions : The UpdateIpsecPolicy options.
 type UpdateIpsecPolicyOptions struct {
 	// The IPsec policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The IPsec policy patch.
 	IPsecPolicyPatch map[string]interface{} `json:"IPsecPolicy_patch" validate:"required"`
@@ -47451,7 +48032,7 @@ func (options *UpdateIpsecPolicyOptions) SetHeaders(param map[string]string) *Up
 // UpdateKeyOptions : The UpdateKey options.
 type UpdateKeyOptions struct {
 	// The key identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The key patch.
 	KeyPatch map[string]interface{} `json:"Key_patch" validate:"required"`
@@ -47489,10 +48070,10 @@ func (options *UpdateKeyOptions) SetHeaders(param map[string]string) *UpdateKeyO
 // UpdateLoadBalancerListenerOptions : The UpdateLoadBalancerListener options.
 type UpdateLoadBalancerListenerOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The load balancer listener patch.
 	LoadBalancerListenerPatch map[string]interface{} `json:"LoadBalancerListener_patch" validate:"required"`
@@ -47537,13 +48118,13 @@ func (options *UpdateLoadBalancerListenerOptions) SetHeaders(param map[string]st
 // UpdateLoadBalancerListenerPolicyOptions : The UpdateLoadBalancerListenerPolicy options.
 type UpdateLoadBalancerListenerPolicyOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener identifier.
-	ListenerID *string `json:"-" validate:"required,ne="`
+	ListenerID *string `json:"listener_id" validate:"required,ne="`
 
 	// The policy identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The listener policy patch.
 	LoadBalancerListenerPolicyPatch map[string]interface{} `json:"LoadBalancerListenerPolicy_patch" validate:"required"`
@@ -47595,16 +48176,16 @@ func (options *UpdateLoadBalancerListenerPolicyOptions) SetHeaders(param map[str
 // UpdateLoadBalancerListenerPolicyRuleOptions : The UpdateLoadBalancerListenerPolicyRule options.
 type UpdateLoadBalancerListenerPolicyRuleOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The listener identifier.
-	ListenerID *string `json:"-" validate:"required,ne="`
+	ListenerID *string `json:"listener_id" validate:"required,ne="`
 
 	// The policy identifier.
-	PolicyID *string `json:"-" validate:"required,ne="`
+	PolicyID *string `json:"policy_id" validate:"required,ne="`
 
 	// The rule identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The listener policy rule patch.
 	LoadBalancerListenerPolicyRulePatch map[string]interface{} `json:"LoadBalancerListenerPolicyRule_patch" validate:"required"`
@@ -47663,7 +48244,7 @@ func (options *UpdateLoadBalancerListenerPolicyRuleOptions) SetHeaders(param map
 // UpdateLoadBalancerOptions : The UpdateLoadBalancer options.
 type UpdateLoadBalancerOptions struct {
 	// The load balancer identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The load balancer patch.
 	LoadBalancerPatch map[string]interface{} `json:"LoadBalancer_patch" validate:"required"`
@@ -47701,13 +48282,13 @@ func (options *UpdateLoadBalancerOptions) SetHeaders(param map[string]string) *U
 // UpdateLoadBalancerPoolMemberOptions : The UpdateLoadBalancerPoolMember options.
 type UpdateLoadBalancerPoolMemberOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The pool identifier.
-	PoolID *string `json:"-" validate:"required,ne="`
+	PoolID *string `json:"pool_id" validate:"required,ne="`
 
 	// The member identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The load balancer pool member patch.
 	LoadBalancerPoolMemberPatch map[string]interface{} `json:"LoadBalancerPoolMember_patch" validate:"required"`
@@ -47759,10 +48340,10 @@ func (options *UpdateLoadBalancerPoolMemberOptions) SetHeaders(param map[string]
 // UpdateLoadBalancerPoolOptions : The UpdateLoadBalancerPool options.
 type UpdateLoadBalancerPoolOptions struct {
 	// The load balancer identifier.
-	LoadBalancerID *string `json:"-" validate:"required,ne="`
+	LoadBalancerID *string `json:"load_balancer_id" validate:"required,ne="`
 
 	// The pool identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The load balancer pool patch.
 	LoadBalancerPoolPatch map[string]interface{} `json:"LoadBalancerPool_patch" validate:"required"`
@@ -47807,7 +48388,7 @@ func (options *UpdateLoadBalancerPoolOptions) SetHeaders(param map[string]string
 // UpdateNetworkACLOptions : The UpdateNetworkACL options.
 type UpdateNetworkACLOptions struct {
 	// The network ACL identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The network ACL patch.
 	NetworkACLPatch map[string]interface{} `json:"NetworkACL_patch" validate:"required"`
@@ -47845,10 +48426,10 @@ func (options *UpdateNetworkACLOptions) SetHeaders(param map[string]string) *Upd
 // UpdateNetworkACLRuleOptions : The UpdateNetworkACLRule options.
 type UpdateNetworkACLRuleOptions struct {
 	// The network ACL identifier.
-	NetworkACLID *string `json:"-" validate:"required,ne="`
+	NetworkACLID *string `json:"network_acl_id" validate:"required,ne="`
 
 	// The rule identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The network ACL rule patch.
 	NetworkACLRulePatch map[string]interface{} `json:"NetworkACLRule_patch" validate:"required"`
@@ -47893,7 +48474,7 @@ func (options *UpdateNetworkACLRuleOptions) SetHeaders(param map[string]string) 
 // UpdatePlacementGroupOptions : The UpdatePlacementGroup options.
 type UpdatePlacementGroupOptions struct {
 	// The placement group identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The placement group patch.
 	PlacementGroupPatch map[string]interface{} `json:"PlacementGroup_patch" validate:"required"`
@@ -47931,7 +48512,7 @@ func (options *UpdatePlacementGroupOptions) SetHeaders(param map[string]string) 
 // UpdatePublicGatewayOptions : The UpdatePublicGateway options.
 type UpdatePublicGatewayOptions struct {
 	// The public gateway identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The public gateway patch.
 	PublicGatewayPatch map[string]interface{} `json:"PublicGateway_patch" validate:"required"`
@@ -47969,7 +48550,7 @@ func (options *UpdatePublicGatewayOptions) SetHeaders(param map[string]string) *
 // UpdateSecurityGroupOptions : The UpdateSecurityGroup options.
 type UpdateSecurityGroupOptions struct {
 	// The security group identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The security group patch.
 	SecurityGroupPatch map[string]interface{} `json:"SecurityGroup_patch" validate:"required"`
@@ -48007,10 +48588,10 @@ func (options *UpdateSecurityGroupOptions) SetHeaders(param map[string]string) *
 // UpdateSecurityGroupRuleOptions : The UpdateSecurityGroupRule options.
 type UpdateSecurityGroupRuleOptions struct {
 	// The security group identifier.
-	SecurityGroupID *string `json:"-" validate:"required,ne="`
+	SecurityGroupID *string `json:"security_group_id" validate:"required,ne="`
 
 	// The rule identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The security group rule patch.
 	SecurityGroupRulePatch map[string]interface{} `json:"SecurityGroupRule_patch" validate:"required"`
@@ -48055,7 +48636,7 @@ func (options *UpdateSecurityGroupRuleOptions) SetHeaders(param map[string]strin
 // UpdateSnapshotOptions : The UpdateSnapshot options.
 type UpdateSnapshotOptions struct {
 	// The snapshot identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The snapshot patch.
 	SnapshotPatch map[string]interface{} `json:"Snapshot_patch" validate:"required"`
@@ -48093,7 +48674,7 @@ func (options *UpdateSnapshotOptions) SetHeaders(param map[string]string) *Updat
 // UpdateSubnetOptions : The UpdateSubnet options.
 type UpdateSubnetOptions struct {
 	// The subnet identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The subnet patch.
 	SubnetPatch map[string]interface{} `json:"Subnet_patch" validate:"required"`
@@ -48131,10 +48712,10 @@ func (options *UpdateSubnetOptions) SetHeaders(param map[string]string) *UpdateS
 // UpdateSubnetReservedIPOptions : The UpdateSubnetReservedIP options.
 type UpdateSubnetReservedIPOptions struct {
 	// The subnet identifier.
-	SubnetID *string `json:"-" validate:"required,ne="`
+	SubnetID *string `json:"subnet_id" validate:"required,ne="`
 
 	// The reserved IP identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The reserved IP patch.
 	ReservedIPPatch map[string]interface{} `json:"ReservedIP_patch" validate:"required"`
@@ -48179,7 +48760,7 @@ func (options *UpdateSubnetReservedIPOptions) SetHeaders(param map[string]string
 // UpdateVolumeOptions : The UpdateVolume options.
 type UpdateVolumeOptions struct {
 	// The volume identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The volume patch.
 	VolumePatch map[string]interface{} `json:"Volume_patch" validate:"required"`
@@ -48217,10 +48798,10 @@ func (options *UpdateVolumeOptions) SetHeaders(param map[string]string) *UpdateV
 // UpdateVPCAddressPrefixOptions : The UpdateVPCAddressPrefix options.
 type UpdateVPCAddressPrefixOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The prefix identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The prefix patch.
 	AddressPrefixPatch map[string]interface{} `json:"AddressPrefix_patch" validate:"required"`
@@ -48265,7 +48846,7 @@ func (options *UpdateVPCAddressPrefixOptions) SetHeaders(param map[string]string
 // UpdateVPCOptions : The UpdateVPC options.
 type UpdateVPCOptions struct {
 	// The VPC identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The VPC patch.
 	VPCPatch map[string]interface{} `json:"VPC_patch" validate:"required"`
@@ -48303,10 +48884,10 @@ func (options *UpdateVPCOptions) SetHeaders(param map[string]string) *UpdateVPCO
 // UpdateVPCRouteOptions : The UpdateVPCRoute options.
 type UpdateVPCRouteOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The route identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The route patch.
 	RoutePatch map[string]interface{} `json:"Route_patch" validate:"required"`
@@ -48351,10 +48932,10 @@ func (options *UpdateVPCRouteOptions) SetHeaders(param map[string]string) *Updat
 // UpdateVPCRoutingTableOptions : The UpdateVPCRoutingTable options.
 type UpdateVPCRoutingTableOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The routing table identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The routing table patch.
 	RoutingTablePatch map[string]interface{} `json:"RoutingTable_patch" validate:"required"`
@@ -48399,13 +48980,13 @@ func (options *UpdateVPCRoutingTableOptions) SetHeaders(param map[string]string)
 // UpdateVPCRoutingTableRouteOptions : The UpdateVPCRoutingTableRoute options.
 type UpdateVPCRoutingTableRouteOptions struct {
 	// The VPC identifier.
-	VPCID *string `json:"-" validate:"required,ne="`
+	VPCID *string `json:"vpc_id" validate:"required,ne="`
 
 	// The routing table identifier.
-	RoutingTableID *string `json:"-" validate:"required,ne="`
+	RoutingTableID *string `json:"routing_table_id" validate:"required,ne="`
 
 	// The VPC routing table route identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The VPC route patch.
 	RoutePatch map[string]interface{} `json:"Route_patch" validate:"required"`
@@ -48457,10 +49038,10 @@ func (options *UpdateVPCRoutingTableRouteOptions) SetHeaders(param map[string]st
 // UpdateVPNGatewayConnectionOptions : The UpdateVPNGatewayConnection options.
 type UpdateVPNGatewayConnectionOptions struct {
 	// The VPN gateway identifier.
-	VPNGatewayID *string `json:"-" validate:"required,ne="`
+	VPNGatewayID *string `json:"vpn_gateway_id" validate:"required,ne="`
 
 	// The VPN gateway connection identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The VPN gateway connection patch.
 	VPNGatewayConnectionPatch map[string]interface{} `json:"VPNGatewayConnection_patch" validate:"required"`
@@ -48505,7 +49086,7 @@ func (options *UpdateVPNGatewayConnectionOptions) SetHeaders(param map[string]st
 // UpdateVPNGatewayOptions : The UpdateVPNGateway options.
 type UpdateVPNGatewayOptions struct {
 	// The VPN gateway identifier.
-	ID *string `json:"-" validate:"required,ne="`
+	ID *string `json:"id" validate:"required,ne="`
 
 	// The VPN gateway patch.
 	VPNGatewayPatch map[string]interface{} `json:"VPNGateway_patch" validate:"required"`
@@ -49884,6 +50465,9 @@ type Volume struct {
 	// Indicates whether a running virtual server instance has an attachment to this volume.
 	Active *bool `json:"active" validate:"required"`
 
+	// The maximum bandwidth (in megabits per second) for the volume.
+	Bandwidth *int64 `json:"bandwidth" validate:"required"`
+
 	// Indicates whether this volume is performing an operation that must be serialized. If an operation specifies that it
 	// requires serialization, the operation will fail unless this property is `false`.
 	Busy *bool `json:"busy" validate:"required"`
@@ -49913,7 +50497,8 @@ type Volume struct {
 	// The unique identifier for this volume.
 	ID *string `json:"id" validate:"required"`
 
-	// The maximum I/O operations per second (IOPS) for the volume.
+	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
+	// `family` of `custom`.
 	Iops *int64 `json:"iops" validate:"required"`
 
 	// The unique user-defined name for this volume.
@@ -49983,6 +50568,10 @@ const (
 func UnmarshalVolume(m map[string]json.RawMessage, result interface{}) (err error) {
 	obj := new(Volume)
 	err = core.UnmarshalPrimitive(m, "active", &obj.Active)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "bandwidth", &obj.Bandwidth)
 	if err != nil {
 		return
 	}
@@ -50068,6 +50657,10 @@ func UnmarshalVolume(m map[string]json.RawMessage, result interface{}) (err erro
 
 // VolumeAttachment : VolumeAttachment struct
 type VolumeAttachment struct {
+	// The maximum bandwidth (in megabits per second) for the volume when attached to this instance. This may be lower than
+	// the volume bandwidth depending on the configuration of the instance.
+	Bandwidth *int64 `json:"bandwidth" validate:"required"`
+
 	// The date and time that the volume was attached.
 	CreatedAt *strfmt.DateTime `json:"created_at" validate:"required"`
 
@@ -50117,6 +50710,10 @@ const (
 // UnmarshalVolumeAttachment unmarshals an instance of VolumeAttachment from the specified map of raw messages.
 func UnmarshalVolumeAttachment(m map[string]json.RawMessage, result interface{}) (err error) {
 	obj := new(VolumeAttachment)
+	err = core.UnmarshalPrimitive(m, "bandwidth", &obj.Bandwidth)
+	if err != nil {
+		return
+	}
 	err = core.UnmarshalPrimitive(m, "created_at", &obj.CreatedAt)
 	if err != nil {
 		return
@@ -50359,7 +50956,8 @@ type VolumeAttachmentPrototypeVolume struct {
 	// The URL for this volume.
 	Href *string `json:"href,omitempty"`
 
-	// The maximum I/O operations per second (IOPS) for the volume.
+	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
+	// `family` of `custom`.
 	Iops *int64 `json:"iops,omitempty"`
 
 	// The unique user-defined name for this volume.
@@ -50615,7 +51213,8 @@ type VolumeAttachmentVolumePrototypeInstanceByVolumeContext struct {
 	// If this property is not provided, the snapshot's `encryption_key` will be used.
 	EncryptionKey EncryptionKeyIdentityIntf `json:"encryption_key,omitempty"`
 
-	// The maximum I/O operations per second (IOPS) for the volume.
+	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
+	// `family` of `custom`.
 	Iops *int64 `json:"iops,omitempty"`
 
 	// The unique user-defined name for this volume.
@@ -50681,7 +51280,8 @@ type VolumeAttachmentVolumePrototypeInstanceContext struct {
 	// The URL for this volume.
 	Href *string `json:"href,omitempty"`
 
-	// The maximum I/O operations per second (IOPS) for the volume.
+	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
+	// `family` of `custom`.
 	Iops *int64 `json:"iops,omitempty"`
 
 	// The unique user-defined name for this volume.
@@ -50885,8 +51485,8 @@ func UnmarshalVolumeIdentity(m map[string]json.RawMessage, result interface{}) (
 
 // VolumePatch : VolumePatch struct
 type VolumePatch struct {
-	// The capacity to use for the volume (in gigabytes). The volume must be attached as a data volume to a virtual server
-	// instance, and the specified value must not be less than the current capacity.
+	// The capacity to use for the volume (in gigabytes). The volume must be attached as a data volume to a running virtual
+	// server instance, and the specified value must not be less than the current capacity.
 	//
 	// The minimum and maximum capacity limits for creating or updating volumes may expand in the future.
 	Capacity *int64 `json:"capacity,omitempty"`
@@ -51139,7 +51739,7 @@ func UnmarshalVolumeProfileReference(m map[string]json.RawMessage, result interf
 // - VolumePrototypeVolumeByCapacity
 type VolumePrototype struct {
 	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
-	// `family` of `custom`. The volume must be attached as a data volume to a running virtual server instance.
+	// `family` of `custom`.
 	Iops *int64 `json:"iops,omitempty"`
 
 	// The unique user-defined name for this volume.
@@ -51224,7 +51824,8 @@ type VolumePrototypeInstanceByImageContext struct {
 	// volume will be `provider_managed`.
 	EncryptionKey EncryptionKeyIdentityIntf `json:"encryption_key,omitempty"`
 
-	// The maximum I/O operations per second (IOPS) for the volume.
+	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
+	// `family` of `custom`.
 	Iops *int64 `json:"iops,omitempty"`
 
 	// The unique user-defined name for this volume.
@@ -54951,8 +55552,8 @@ func UnmarshalInstanceProfileBandwidthDependent(m map[string]json.RawMessage, re
 	return
 }
 
-// InstanceProfileBandwidthEnum : The permitted total bandwidth values (in megabits per second) shared across the network interfaces of an instance
-// with this profile.
+// InstanceProfileBandwidthEnum : The permitted total bandwidth values (in megabits per second) shared across the network interfaces and storage
+// volumes of an instance with this profile.
 // This model "extends" InstanceProfileBandwidth
 type InstanceProfileBandwidthEnum struct {
 	// The default value for this profile field.
@@ -55386,6 +55987,328 @@ func (*InstanceProfileDiskSizeRange) isaInstanceProfileDiskSize() bool {
 // UnmarshalInstanceProfileDiskSizeRange unmarshals an instance of InstanceProfileDiskSizeRange from the specified map of raw messages.
 func UnmarshalInstanceProfileDiskSizeRange(m map[string]json.RawMessage, result interface{}) (err error) {
 	obj := new(InstanceProfileDiskSizeRange)
+	err = core.UnmarshalPrimitive(m, "default", &obj.Default)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "max", &obj.Max)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "min", &obj.Min)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "step", &obj.Step)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileGpuDependent : The GPU count for an instance with this profile depends on its configuration.
+// This model "extends" InstanceProfileGpu
+type InstanceProfileGpuDependent struct {
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileGpuDependent.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileGpuDependentTypeDependentConst = "dependent"
+)
+
+func (*InstanceProfileGpuDependent) isaInstanceProfileGpu() bool {
+	return true
+}
+
+// UnmarshalInstanceProfileGpuDependent unmarshals an instance of InstanceProfileGpuDependent from the specified map of raw messages.
+func UnmarshalInstanceProfileGpuDependent(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileGpuDependent)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileGpuEnum : The permitted GPU count values for an instance with this profile.
+// This model "extends" InstanceProfileGpu
+type InstanceProfileGpuEnum struct {
+	// The default value for this profile field.
+	Default *int64 `json:"default" validate:"required"`
+
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+
+	// The permitted values for this profile field.
+	Values []int64 `json:"values" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileGpuEnum.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileGpuEnumTypeEnumConst = "enum"
+)
+
+func (*InstanceProfileGpuEnum) isaInstanceProfileGpu() bool {
+	return true
+}
+
+// UnmarshalInstanceProfileGpuEnum unmarshals an instance of InstanceProfileGpuEnum from the specified map of raw messages.
+func UnmarshalInstanceProfileGpuEnum(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileGpuEnum)
+	err = core.UnmarshalPrimitive(m, "default", &obj.Default)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "values", &obj.Values)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileGpuFixed : The GPU count for an instance with this profile.
+// This model "extends" InstanceProfileGpu
+type InstanceProfileGpuFixed struct {
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+
+	// The value for this profile field.
+	Value *int64 `json:"value" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileGpuFixed.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileGpuFixedTypeFixedConst = "fixed"
+)
+
+func (*InstanceProfileGpuFixed) isaInstanceProfileGpu() bool {
+	return true
+}
+
+// UnmarshalInstanceProfileGpuFixed unmarshals an instance of InstanceProfileGpuFixed from the specified map of raw messages.
+func UnmarshalInstanceProfileGpuFixed(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileGpuFixed)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "value", &obj.Value)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileGpuMemoryDependent : The overall GPU memory value for an instance with this profile depends on its configuration.
+// This model "extends" InstanceProfileGpuMemory
+type InstanceProfileGpuMemoryDependent struct {
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileGpuMemoryDependent.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileGpuMemoryDependentTypeDependentConst = "dependent"
+)
+
+func (*InstanceProfileGpuMemoryDependent) isaInstanceProfileGpuMemory() bool {
+	return true
+}
+
+// UnmarshalInstanceProfileGpuMemoryDependent unmarshals an instance of InstanceProfileGpuMemoryDependent from the specified map of raw messages.
+func UnmarshalInstanceProfileGpuMemoryDependent(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileGpuMemoryDependent)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileGpuMemoryEnum : The permitted overall GPU memory values in GiB (gibibytes) for an instance with this profile.
+// This model "extends" InstanceProfileGpuMemory
+type InstanceProfileGpuMemoryEnum struct {
+	// The default value for this profile field.
+	Default *int64 `json:"default" validate:"required"`
+
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+
+	// The permitted values for this profile field.
+	Values []int64 `json:"values" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileGpuMemoryEnum.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileGpuMemoryEnumTypeEnumConst = "enum"
+)
+
+func (*InstanceProfileGpuMemoryEnum) isaInstanceProfileGpuMemory() bool {
+	return true
+}
+
+// UnmarshalInstanceProfileGpuMemoryEnum unmarshals an instance of InstanceProfileGpuMemoryEnum from the specified map of raw messages.
+func UnmarshalInstanceProfileGpuMemoryEnum(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileGpuMemoryEnum)
+	err = core.UnmarshalPrimitive(m, "default", &obj.Default)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "values", &obj.Values)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileGpuMemoryFixed : The overall GPU memory in GiB (gibibytes) for an instance with this profile.
+// This model "extends" InstanceProfileGpuMemory
+type InstanceProfileGpuMemoryFixed struct {
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+
+	// The value for this profile field.
+	Value *int64 `json:"value" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileGpuMemoryFixed.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileGpuMemoryFixedTypeFixedConst = "fixed"
+)
+
+func (*InstanceProfileGpuMemoryFixed) isaInstanceProfileGpuMemory() bool {
+	return true
+}
+
+// UnmarshalInstanceProfileGpuMemoryFixed unmarshals an instance of InstanceProfileGpuMemoryFixed from the specified map of raw messages.
+func UnmarshalInstanceProfileGpuMemoryFixed(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileGpuMemoryFixed)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "value", &obj.Value)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileGpuMemoryRange : The permitted overall GPU memory range in GiB (gibibytes) for an instance with this profile.
+// This model "extends" InstanceProfileGpuMemory
+type InstanceProfileGpuMemoryRange struct {
+	// The default value for this profile field.
+	Default *int64 `json:"default" validate:"required"`
+
+	// The maximum value for this profile field.
+	Max *int64 `json:"max" validate:"required"`
+
+	// The minimum value for this profile field.
+	Min *int64 `json:"min" validate:"required"`
+
+	// The increment step value for this profile field.
+	Step *int64 `json:"step" validate:"required"`
+
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileGpuMemoryRange.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileGpuMemoryRangeTypeRangeConst = "range"
+)
+
+func (*InstanceProfileGpuMemoryRange) isaInstanceProfileGpuMemory() bool {
+	return true
+}
+
+// UnmarshalInstanceProfileGpuMemoryRange unmarshals an instance of InstanceProfileGpuMemoryRange from the specified map of raw messages.
+func UnmarshalInstanceProfileGpuMemoryRange(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileGpuMemoryRange)
+	err = core.UnmarshalPrimitive(m, "default", &obj.Default)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "max", &obj.Max)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "min", &obj.Min)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "step", &obj.Step)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileGpuRange : The permitted GPU count range for an instance with this profile.
+// This model "extends" InstanceProfileGpu
+type InstanceProfileGpuRange struct {
+	// The default value for this profile field.
+	Default *int64 `json:"default" validate:"required"`
+
+	// The maximum value for this profile field.
+	Max *int64 `json:"max" validate:"required"`
+
+	// The minimum value for this profile field.
+	Min *int64 `json:"min" validate:"required"`
+
+	// The increment step value for this profile field.
+	Step *int64 `json:"step" validate:"required"`
+
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileGpuRange.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileGpuRangeTypeRangeConst = "range"
+)
+
+func (*InstanceProfileGpuRange) isaInstanceProfileGpu() bool {
+	return true
+}
+
+// UnmarshalInstanceProfileGpuRange unmarshals an instance of InstanceProfileGpuRange from the specified map of raw messages.
+func UnmarshalInstanceProfileGpuRange(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileGpuRange)
 	err = core.UnmarshalPrimitive(m, "default", &obj.Default)
 	if err != nil {
 		return
@@ -55857,6 +56780,170 @@ func UnmarshalInstanceProfileVcpuRange(m map[string]json.RawMessage, result inte
 	return
 }
 
+// InstanceProfileVolumeBandwidthDependent : The storage bandwidth shared across the storage volumes of an instance with this profile depends on its
+// configuration.
+// This model "extends" InstanceProfileVolumeBandwidth
+type InstanceProfileVolumeBandwidthDependent struct {
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileVolumeBandwidthDependent.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileVolumeBandwidthDependentTypeDependentConst = "dependent"
+)
+
+func (*InstanceProfileVolumeBandwidthDependent) isaInstanceProfileVolumeBandwidth() bool {
+	return true
+}
+
+// UnmarshalInstanceProfileVolumeBandwidthDependent unmarshals an instance of InstanceProfileVolumeBandwidthDependent from the specified map of raw messages.
+func UnmarshalInstanceProfileVolumeBandwidthDependent(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileVolumeBandwidthDependent)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileVolumeBandwidthEnum : The permitted storage bandwidth values (in megabits per second) shared across the storage volumes of an instance with
+// this profile.
+// This model "extends" InstanceProfileVolumeBandwidth
+type InstanceProfileVolumeBandwidthEnum struct {
+	// The default value for this profile field.
+	Default *int64 `json:"default" validate:"required"`
+
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+
+	// The permitted values for this profile field.
+	Values []int64 `json:"values" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileVolumeBandwidthEnum.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileVolumeBandwidthEnumTypeEnumConst = "enum"
+)
+
+func (*InstanceProfileVolumeBandwidthEnum) isaInstanceProfileVolumeBandwidth() bool {
+	return true
+}
+
+// UnmarshalInstanceProfileVolumeBandwidthEnum unmarshals an instance of InstanceProfileVolumeBandwidthEnum from the specified map of raw messages.
+func UnmarshalInstanceProfileVolumeBandwidthEnum(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileVolumeBandwidthEnum)
+	err = core.UnmarshalPrimitive(m, "default", &obj.Default)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "values", &obj.Values)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileVolumeBandwidthFixed : The storage bandwidth (in megabits per second) shared across the storage volumes of an instance with this profile.
+// This model "extends" InstanceProfileVolumeBandwidth
+type InstanceProfileVolumeBandwidthFixed struct {
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+
+	// The value for this profile field.
+	Value *int64 `json:"value" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileVolumeBandwidthFixed.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileVolumeBandwidthFixedTypeFixedConst = "fixed"
+)
+
+func (*InstanceProfileVolumeBandwidthFixed) isaInstanceProfileVolumeBandwidth() bool {
+	return true
+}
+
+// UnmarshalInstanceProfileVolumeBandwidthFixed unmarshals an instance of InstanceProfileVolumeBandwidthFixed from the specified map of raw messages.
+func UnmarshalInstanceProfileVolumeBandwidthFixed(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileVolumeBandwidthFixed)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "value", &obj.Value)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// InstanceProfileVolumeBandwidthRange : The permitted storage bandwidth range (in megabits per second) shared across the storage volumes of an instance with
+// this profile.
+// This model "extends" InstanceProfileVolumeBandwidth
+type InstanceProfileVolumeBandwidthRange struct {
+	// The default value for this profile field.
+	Default *int64 `json:"default" validate:"required"`
+
+	// The maximum value for this profile field.
+	Max *int64 `json:"max" validate:"required"`
+
+	// The minimum value for this profile field.
+	Min *int64 `json:"min" validate:"required"`
+
+	// The increment step value for this profile field.
+	Step *int64 `json:"step" validate:"required"`
+
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+}
+
+// Constants associated with the InstanceProfileVolumeBandwidthRange.Type property.
+// The type for this profile field.
+const (
+	InstanceProfileVolumeBandwidthRangeTypeRangeConst = "range"
+)
+
+func (*InstanceProfileVolumeBandwidthRange) isaInstanceProfileVolumeBandwidth() bool {
+	return true
+}
+
+// UnmarshalInstanceProfileVolumeBandwidthRange unmarshals an instance of InstanceProfileVolumeBandwidthRange from the specified map of raw messages.
+func UnmarshalInstanceProfileVolumeBandwidthRange(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(InstanceProfileVolumeBandwidthRange)
+	err = core.UnmarshalPrimitive(m, "default", &obj.Default)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "max", &obj.Max)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "min", &obj.Min)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "step", &obj.Step)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
 // InstancePrototypeInstanceByImage : InstancePrototypeInstanceByImage struct
 // This model "extends" InstancePrototype
 type InstancePrototypeInstanceByImage struct {
@@ -55868,6 +56955,10 @@ type InstancePrototypeInstanceByImage struct {
 	// password](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization). Keys are optional for other images, but if
 	// no keys are specified, the instance will be inaccessible unless the specified image provides another means of
 	// access.
+	//
+	// This property's value is used when provisioning the virtual server instance, but not subsequently managed.
+	// Accordingly, it is reflected as an [instance
+	// initialization](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization) property.
 	Keys []KeyIdentityIntf `json:"keys,omitempty"`
 
 	// The unique user-defined name for this virtual server instance (and default system hostname). If unspecified, the
@@ -55884,6 +56975,11 @@ type InstancePrototypeInstanceByImage struct {
 	Profile InstanceProfileIdentityIntf `json:"profile,omitempty"`
 
 	ResourceGroup ResourceGroupIdentityIntf `json:"resource_group,omitempty"`
+
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance storage volumes. An increase in
+	// this value will result in a corresponding decrease to
+	// `total_network_bandwidth`.
+	TotalVolumeBandwidth *int64 `json:"total_volume_bandwidth,omitempty"`
 
 	// User data to be made available when setting up the virtual server instance.
 	UserData *string `json:"user_data,omitempty"`
@@ -55950,6 +57046,10 @@ func UnmarshalInstancePrototypeInstanceByImage(m map[string]json.RawMessage, res
 	if err != nil {
 		return
 	}
+	err = core.UnmarshalPrimitive(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth)
+	if err != nil {
+		return
+	}
 	err = core.UnmarshalPrimitive(m, "user_data", &obj.UserData)
 	if err != nil {
 		return
@@ -55993,6 +57093,10 @@ type InstancePrototypeInstanceBySourceTemplate struct {
 	// password](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization). Keys are optional for other images, but if
 	// no keys are specified, the instance will be inaccessible unless the specified image provides another means of
 	// access.
+	//
+	// This property's value is used when provisioning the virtual server instance, but not subsequently managed.
+	// Accordingly, it is reflected as an [instance
+	// initialization](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization) property.
 	Keys []KeyIdentityIntf `json:"keys,omitempty"`
 
 	// The unique user-defined name for this virtual server instance (and default system hostname). If unspecified, the
@@ -56009,6 +57113,11 @@ type InstancePrototypeInstanceBySourceTemplate struct {
 	Profile InstanceProfileIdentityIntf `json:"profile,omitempty"`
 
 	ResourceGroup ResourceGroupIdentityIntf `json:"resource_group,omitempty"`
+
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance storage volumes. An increase in
+	// this value will result in a corresponding decrease to
+	// `total_network_bandwidth`.
+	TotalVolumeBandwidth *int64 `json:"total_volume_bandwidth,omitempty"`
 
 	// User data to be made available when setting up the virtual server instance.
 	UserData *string `json:"user_data,omitempty"`
@@ -56076,6 +57185,10 @@ func UnmarshalInstancePrototypeInstanceBySourceTemplate(m map[string]json.RawMes
 	if err != nil {
 		return
 	}
+	err = core.UnmarshalPrimitive(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth)
+	if err != nil {
+		return
+	}
 	err = core.UnmarshalPrimitive(m, "user_data", &obj.UserData)
 	if err != nil {
 		return
@@ -56123,6 +57236,10 @@ type InstancePrototypeInstanceByVolume struct {
 	// password](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization). Keys are optional for other images, but if
 	// no keys are specified, the instance will be inaccessible unless the specified image provides another means of
 	// access.
+	//
+	// This property's value is used when provisioning the virtual server instance, but not subsequently managed.
+	// Accordingly, it is reflected as an [instance
+	// initialization](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization) property.
 	Keys []KeyIdentityIntf `json:"keys,omitempty"`
 
 	// The unique user-defined name for this virtual server instance (and default system hostname). If unspecified, the
@@ -56139,6 +57256,11 @@ type InstancePrototypeInstanceByVolume struct {
 	Profile InstanceProfileIdentityIntf `json:"profile,omitempty"`
 
 	ResourceGroup ResourceGroupIdentityIntf `json:"resource_group,omitempty"`
+
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance storage volumes. An increase in
+	// this value will result in a corresponding decrease to
+	// `total_network_bandwidth`.
+	TotalVolumeBandwidth *int64 `json:"total_volume_bandwidth,omitempty"`
 
 	// User data to be made available when setting up the virtual server instance.
 	UserData *string `json:"user_data,omitempty"`
@@ -56199,6 +57321,10 @@ func UnmarshalInstancePrototypeInstanceByVolume(m map[string]json.RawMessage, re
 		return
 	}
 	err = core.UnmarshalModel(m, "resource_group", &obj.ResourceGroup, UnmarshalResourceGroupIdentity)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth)
 	if err != nil {
 		return
 	}
@@ -56334,6 +57460,10 @@ type InstanceTemplatePrototypeInstanceByImage struct {
 	// password](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization). Keys are optional for other images, but if
 	// no keys are specified, the instance will be inaccessible unless the specified image provides another means of
 	// access.
+	//
+	// This property's value is used when provisioning the virtual server instance, but not subsequently managed.
+	// Accordingly, it is reflected as an [instance
+	// initialization](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization) property.
 	Keys []KeyIdentityIntf `json:"keys,omitempty"`
 
 	// The unique user-defined name for this virtual server instance (and default system hostname). If unspecified, the
@@ -56350,6 +57480,11 @@ type InstanceTemplatePrototypeInstanceByImage struct {
 	Profile InstanceProfileIdentityIntf `json:"profile,omitempty"`
 
 	ResourceGroup ResourceGroupIdentityIntf `json:"resource_group,omitempty"`
+
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance storage volumes. An increase in
+	// this value will result in a corresponding decrease to
+	// `total_network_bandwidth`.
+	TotalVolumeBandwidth *int64 `json:"total_volume_bandwidth,omitempty"`
 
 	// User data to be made available when setting up the virtual server instance.
 	UserData *string `json:"user_data,omitempty"`
@@ -56416,6 +57551,10 @@ func UnmarshalInstanceTemplatePrototypeInstanceByImage(m map[string]json.RawMess
 	if err != nil {
 		return
 	}
+	err = core.UnmarshalPrimitive(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth)
+	if err != nil {
+		return
+	}
 	err = core.UnmarshalPrimitive(m, "user_data", &obj.UserData)
 	if err != nil {
 		return
@@ -56459,6 +57598,10 @@ type InstanceTemplatePrototypeInstanceBySourceTemplate struct {
 	// password](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization). Keys are optional for other images, but if
 	// no keys are specified, the instance will be inaccessible unless the specified image provides another means of
 	// access.
+	//
+	// This property's value is used when provisioning the virtual server instance, but not subsequently managed.
+	// Accordingly, it is reflected as an [instance
+	// initialization](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization) property.
 	Keys []KeyIdentityIntf `json:"keys,omitempty"`
 
 	// The unique user-defined name for this virtual server instance (and default system hostname). If unspecified, the
@@ -56475,6 +57618,11 @@ type InstanceTemplatePrototypeInstanceBySourceTemplate struct {
 	Profile InstanceProfileIdentityIntf `json:"profile,omitempty"`
 
 	ResourceGroup ResourceGroupIdentityIntf `json:"resource_group,omitempty"`
+
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance storage volumes. An increase in
+	// this value will result in a corresponding decrease to
+	// `total_network_bandwidth`.
+	TotalVolumeBandwidth *int64 `json:"total_volume_bandwidth,omitempty"`
 
 	// User data to be made available when setting up the virtual server instance.
 	UserData *string `json:"user_data,omitempty"`
@@ -56542,6 +57690,10 @@ func UnmarshalInstanceTemplatePrototypeInstanceBySourceTemplate(m map[string]jso
 	if err != nil {
 		return
 	}
+	err = core.UnmarshalPrimitive(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth)
+	if err != nil {
+		return
+	}
 	err = core.UnmarshalPrimitive(m, "user_data", &obj.UserData)
 	if err != nil {
 		return
@@ -56589,6 +57741,10 @@ type InstanceTemplatePrototypeInstanceByVolume struct {
 	// password](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization). Keys are optional for other images, but if
 	// no keys are specified, the instance will be inaccessible unless the specified image provides another means of
 	// access.
+	//
+	// This property's value is used when provisioning the virtual server instance, but not subsequently managed.
+	// Accordingly, it is reflected as an [instance
+	// initialization](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization) property.
 	Keys []KeyIdentityIntf `json:"keys,omitempty"`
 
 	// The unique user-defined name for this virtual server instance (and default system hostname). If unspecified, the
@@ -56605,6 +57761,11 @@ type InstanceTemplatePrototypeInstanceByVolume struct {
 	Profile InstanceProfileIdentityIntf `json:"profile,omitempty"`
 
 	ResourceGroup ResourceGroupIdentityIntf `json:"resource_group,omitempty"`
+
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance storage volumes. An increase in
+	// this value will result in a corresponding decrease to
+	// `total_network_bandwidth`.
+	TotalVolumeBandwidth *int64 `json:"total_volume_bandwidth,omitempty"`
 
 	// User data to be made available when setting up the virtual server instance.
 	UserData *string `json:"user_data,omitempty"`
@@ -56668,6 +57829,10 @@ func UnmarshalInstanceTemplatePrototypeInstanceByVolume(m map[string]json.RawMes
 	if err != nil {
 		return
 	}
+	err = core.UnmarshalPrimitive(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth)
+	if err != nil {
+		return
+	}
 	err = core.UnmarshalPrimitive(m, "user_data", &obj.UserData)
 	if err != nil {
 		return
@@ -56719,6 +57884,10 @@ type InstanceTemplateInstanceByImage struct {
 	// password](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization). Keys are optional for other images, but if
 	// no keys are specified, the instance will be inaccessible unless the specified image provides another means of
 	// access.
+	//
+	// This property's value is used when provisioning the virtual server instance, but not subsequently managed.
+	// Accordingly, it is reflected as an [instance
+	// initialization](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization) property.
 	Keys []KeyIdentityIntf `json:"keys,omitempty"`
 
 	// The unique user-defined name for this instance template.
@@ -56735,6 +57904,11 @@ type InstanceTemplateInstanceByImage struct {
 
 	// The resource group for this instance template.
 	ResourceGroup *ResourceGroupReference `json:"resource_group" validate:"required"`
+
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance storage volumes. An increase in
+	// this value will result in a corresponding decrease to
+	// `total_network_bandwidth`.
+	TotalVolumeBandwidth *int64 `json:"total_volume_bandwidth,omitempty"`
 
 	// User data to be made available when setting up the virtual server instance.
 	UserData *string `json:"user_data,omitempty"`
@@ -56806,6 +57980,10 @@ func UnmarshalInstanceTemplateInstanceByImage(m map[string]json.RawMessage, resu
 	if err != nil {
 		return
 	}
+	err = core.UnmarshalPrimitive(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth)
+	if err != nil {
+		return
+	}
 	err = core.UnmarshalPrimitive(m, "user_data", &obj.UserData)
 	if err != nil {
 		return
@@ -56861,6 +58039,10 @@ type InstanceTemplateInstanceByVolume struct {
 	// password](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization). Keys are optional for other images, but if
 	// no keys are specified, the instance will be inaccessible unless the specified image provides another means of
 	// access.
+	//
+	// This property's value is used when provisioning the virtual server instance, but not subsequently managed.
+	// Accordingly, it is reflected as an [instance
+	// initialization](https://cloud.ibm.com/apidocs/vpc#get-instance-initialization) property.
 	Keys []KeyIdentityIntf `json:"keys,omitempty"`
 
 	// The unique user-defined name for this instance template.
@@ -56877,6 +58059,11 @@ type InstanceTemplateInstanceByVolume struct {
 
 	// The resource group for this instance template.
 	ResourceGroup *ResourceGroupReference `json:"resource_group" validate:"required"`
+
+	// The amount of bandwidth (in megabits per second) allocated exclusively to instance storage volumes. An increase in
+	// this value will result in a corresponding decrease to
+	// `total_network_bandwidth`.
+	TotalVolumeBandwidth *int64 `json:"total_volume_bandwidth,omitempty"`
 
 	// User data to be made available when setting up the virtual server instance.
 	UserData *string `json:"user_data,omitempty"`
@@ -56942,6 +58129,10 @@ func UnmarshalInstanceTemplateInstanceByVolume(m map[string]json.RawMessage, res
 		return
 	}
 	err = core.UnmarshalModel(m, "resource_group", &obj.ResourceGroup, UnmarshalResourceGroupReference)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "total_volume_bandwidth", &obj.TotalVolumeBandwidth)
 	if err != nil {
 		return
 	}
@@ -57871,6 +59062,69 @@ func (*LoadBalancerProfileIdentityByName) isaLoadBalancerProfileIdentity() bool 
 func UnmarshalLoadBalancerProfileIdentityByName(m map[string]json.RawMessage, result interface{}) (err error) {
 	obj := new(LoadBalancerProfileIdentityByName)
 	err = core.UnmarshalPrimitive(m, "name", &obj.Name)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// LoadBalancerProfileRouteModeSupportedDependent : The route mode support for a load balancer with this profile depends on its configuration.
+// This model "extends" LoadBalancerProfileRouteModeSupported
+type LoadBalancerProfileRouteModeSupportedDependent struct {
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+}
+
+// Constants associated with the LoadBalancerProfileRouteModeSupportedDependent.Type property.
+// The type for this profile field.
+const (
+	LoadBalancerProfileRouteModeSupportedDependentTypeDependentConst = "dependent"
+)
+
+func (*LoadBalancerProfileRouteModeSupportedDependent) isaLoadBalancerProfileRouteModeSupported() bool {
+	return true
+}
+
+// UnmarshalLoadBalancerProfileRouteModeSupportedDependent unmarshals an instance of LoadBalancerProfileRouteModeSupportedDependent from the specified map of raw messages.
+func UnmarshalLoadBalancerProfileRouteModeSupportedDependent(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(LoadBalancerProfileRouteModeSupportedDependent)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	reflect.ValueOf(result).Elem().Set(reflect.ValueOf(obj))
+	return
+}
+
+// LoadBalancerProfileRouteModeSupportedFixed : The route mode support for a load balancer with this profile.
+// This model "extends" LoadBalancerProfileRouteModeSupported
+type LoadBalancerProfileRouteModeSupportedFixed struct {
+	// The type for this profile field.
+	Type *string `json:"type" validate:"required"`
+
+	// The value for this profile field.
+	Value *bool `json:"value" validate:"required"`
+}
+
+// Constants associated with the LoadBalancerProfileRouteModeSupportedFixed.Type property.
+// The type for this profile field.
+const (
+	LoadBalancerProfileRouteModeSupportedFixedTypeFixedConst = "fixed"
+)
+
+func (*LoadBalancerProfileRouteModeSupportedFixed) isaLoadBalancerProfileRouteModeSupported() bool {
+	return true
+}
+
+// UnmarshalLoadBalancerProfileRouteModeSupportedFixed unmarshals an instance of LoadBalancerProfileRouteModeSupportedFixed from the specified map of raw messages.
+func UnmarshalLoadBalancerProfileRouteModeSupportedFixed(m map[string]json.RawMessage, result interface{}) (err error) {
+	obj := new(LoadBalancerProfileRouteModeSupportedFixed)
+	err = core.UnmarshalPrimitive(m, "type", &obj.Type)
+	if err != nil {
+		return
+	}
+	err = core.UnmarshalPrimitive(m, "value", &obj.Value)
 	if err != nil {
 		return
 	}
@@ -62149,12 +63403,12 @@ type VPNGatewayConnectionPrototypeVPNGatewayConnectionPolicyModePrototype struct
 }
 
 // NewVPNGatewayConnectionPrototypeVPNGatewayConnectionPolicyModePrototype : Instantiate VPNGatewayConnectionPrototypeVPNGatewayConnectionPolicyModePrototype (Generic Model Constructor)
-func (*VpcV1) NewVPNGatewayConnectionPrototypeVPNGatewayConnectionPolicyModePrototype(peerAddress string, psk string, LocalCIDRs []string, PeerCIDRs []string) (_model *VPNGatewayConnectionPrototypeVPNGatewayConnectionPolicyModePrototype, err error) {
+func (*VpcV1) NewVPNGatewayConnectionPrototypeVPNGatewayConnectionPolicyModePrototype(peerAddress string, psk string, localCIDRs []string, peerCIDRs []string) (_model *VPNGatewayConnectionPrototypeVPNGatewayConnectionPolicyModePrototype, err error) {
 	_model = &VPNGatewayConnectionPrototypeVPNGatewayConnectionPolicyModePrototype{
 		PeerAddress: core.StringPtr(peerAddress),
 		Psk:         core.StringPtr(psk),
-		LocalCIDRs:  LocalCIDRs,
-		PeerCIDRs:   PeerCIDRs,
+		LocalCIDRs:  localCIDRs,
+		PeerCIDRs:   peerCIDRs,
 	}
 	err = core.ValidateStruct(_model, "required parameters")
 	return
@@ -62828,7 +64082,8 @@ func UnmarshalVolumeAttachmentPrototypeVolumeVolumeIdentity(m map[string]json.Ra
 // - VolumeAttachmentPrototypeVolumeVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeBySourceSnapshot
 // This model "extends" VolumeAttachmentPrototypeVolume
 type VolumeAttachmentPrototypeVolumeVolumePrototypeInstanceContext struct {
-	// The maximum I/O operations per second (IOPS) for the volume.
+	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
+	// `family` of `custom`.
 	Iops *int64 `json:"iops,omitempty"`
 
 	// The unique user-defined name for this volume.
@@ -62909,7 +64164,8 @@ type VolumeAttachmentVolumePrototypeInstanceByVolumeContextVolumePrototypeInstan
 	// If this property is not provided, the snapshot's `encryption_key` will be used.
 	EncryptionKey EncryptionKeyIdentityIntf `json:"encryption_key,omitempty"`
 
-	// The maximum I/O operations per second (IOPS) for the volume.
+	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
+	// `family` of `custom`.
 	Iops *int64 `json:"iops,omitempty"`
 
 	// The unique user-defined name for this volume.
@@ -63022,7 +64278,8 @@ func UnmarshalVolumeAttachmentVolumePrototypeInstanceContextVolumeIdentity(m map
 // - VolumeAttachmentVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeBySourceSnapshot
 // This model "extends" VolumeAttachmentVolumePrototypeInstanceContext
 type VolumeAttachmentVolumePrototypeInstanceContextVolumePrototypeInstanceContext struct {
-	// The maximum I/O operations per second (IOPS) for the volume.
+	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
+	// `family` of `custom`.
 	Iops *int64 `json:"iops,omitempty"`
 
 	// The unique user-defined name for this volume.
@@ -63248,7 +64505,7 @@ func UnmarshalVolumeProfileIdentityByName(m map[string]json.RawMessage, result i
 // This model "extends" VolumePrototype
 type VolumePrototypeVolumeByCapacity struct {
 	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
-	// `family` of `custom`. The volume must be attached as a data volume to a running virtual server instance.
+	// `family` of `custom`.
 	Iops *int64 `json:"iops,omitempty"`
 
 	// The unique user-defined name for this volume.
@@ -65655,7 +66912,8 @@ func UnmarshalVolumeAttachmentPrototypeVolumeVolumeIdentityVolumeIdentityByID(m 
 // VolumeAttachmentPrototypeVolumeVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeByCapacity : VolumeAttachmentPrototypeVolumeVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeByCapacity struct
 // This model "extends" VolumeAttachmentPrototypeVolumeVolumePrototypeInstanceContext
 type VolumeAttachmentPrototypeVolumeVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeByCapacity struct {
-	// The maximum I/O operations per second (IOPS) for the volume.
+	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
+	// `family` of `custom`.
 	Iops *int64 `json:"iops,omitempty"`
 
 	// The unique user-defined name for this volume.
@@ -65723,7 +66981,8 @@ func UnmarshalVolumeAttachmentPrototypeVolumeVolumePrototypeInstanceContextVolum
 // VolumeAttachmentPrototypeVolumeVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeBySourceSnapshot : VolumeAttachmentPrototypeVolumeVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeBySourceSnapshot struct
 // This model "extends" VolumeAttachmentPrototypeVolumeVolumePrototypeInstanceContext
 type VolumeAttachmentPrototypeVolumeVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeBySourceSnapshot struct {
-	// The maximum I/O operations per second (IOPS) for the volume.
+	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
+	// `family` of `custom`.
 	Iops *int64 `json:"iops,omitempty"`
 
 	// The unique user-defined name for this volume.
@@ -65732,7 +66991,8 @@ type VolumeAttachmentPrototypeVolumeVolumePrototypeInstanceContextVolumePrototyp
 	// The profile to use for this volume.
 	Profile VolumeProfileIdentityIntf `json:"profile" validate:"required"`
 
-	// The capacity to use for the volume (in gigabytes). The allowed values are expected to expand in the future.
+	// The capacity to use for the volume (in gigabytes). The only allowed value is the source snapshot's
+	// `minimum_capacity`, but the allowed values are expected to expand in the future.
 	//
 	// If unspecified, the capacity will be the source snapshot's `minimum_capacity`.
 	Capacity *int64 `json:"capacity,omitempty"`
@@ -65903,7 +67163,8 @@ func UnmarshalVolumeAttachmentVolumePrototypeInstanceContextVolumeIdentityVolume
 // VolumeAttachmentVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeByCapacity : VolumeAttachmentVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeByCapacity struct
 // This model "extends" VolumeAttachmentVolumePrototypeInstanceContextVolumePrototypeInstanceContext
 type VolumeAttachmentVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeByCapacity struct {
-	// The maximum I/O operations per second (IOPS) for the volume.
+	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
+	// `family` of `custom`.
 	Iops *int64 `json:"iops,omitempty"`
 
 	// The unique user-defined name for this volume.
@@ -65971,7 +67232,8 @@ func UnmarshalVolumeAttachmentVolumePrototypeInstanceContextVolumePrototypeInsta
 // VolumeAttachmentVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeBySourceSnapshot : VolumeAttachmentVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeBySourceSnapshot struct
 // This model "extends" VolumeAttachmentVolumePrototypeInstanceContextVolumePrototypeInstanceContext
 type VolumeAttachmentVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumePrototypeInstanceContextVolumeBySourceSnapshot struct {
-	// The maximum I/O operations per second (IOPS) for the volume.
+	// The maximum I/O operations per second (IOPS) to use for the volume. Applicable only to volumes using a profile
+	// `family` of `custom`.
 	Iops *int64 `json:"iops,omitempty"`
 
 	// The unique user-defined name for this volume.
@@ -65980,7 +67242,8 @@ type VolumeAttachmentVolumePrototypeInstanceContextVolumePrototypeInstanceContex
 	// The profile to use for this volume.
 	Profile VolumeProfileIdentityIntf `json:"profile" validate:"required"`
 
-	// The capacity to use for the volume (in gigabytes). The allowed values are expected to expand in the future.
+	// The capacity to use for the volume (in gigabytes). The only allowed value is the source snapshot's
+	// `minimum_capacity`, but the allowed values are expected to expand in the future.
 	//
 	// If unspecified, the capacity will be the source snapshot's `minimum_capacity`.
 	Capacity *int64 `json:"capacity,omitempty"`

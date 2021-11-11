@@ -17,7 +17,7 @@
 * limitations under the License.
 *******************************************************************************/
 
-package vpclb
+package vpcctl
 
 import (
 	"fmt"
@@ -36,7 +36,7 @@ func newNoAuthTestVpcSdkGen2(server string) *VpcSdkGen2 {
 	client, _ := sdk.NewVpcV1(&sdk.VpcV1Options{
 		URL:           server,
 		Authenticator: &core.NoAuthAuthenticator{}})
-	return &VpcSdkGen2{Client: client}
+	return &VpcSdkGen2{Client: client, Config: &ConfigVpc{}}
 }
 
 func TestVpcSdkGen2_CreateLoadBalancer(t *testing.T) {

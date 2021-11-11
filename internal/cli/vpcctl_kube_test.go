@@ -34,10 +34,6 @@ import (
 )
 
 var (
-	mockClusterID = "clusterID"
-	mockConfigMap = &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: clusterConfigMap, Namespace: clusterNamespace},
-		Data:       map[string]string{clusterConfigKey: `{ "cluster_id": "clusterID" }`}}
 	mockKubeCtl    = fake.NewSimpleClientset()
 	mockKubeCtlErr error
 )
@@ -52,96 +48,11 @@ func TestCloudInit(t *testing.T) {
 
 	// Fail to get kubernetes client
 	mockKubeCtlErr = fmt.Errorf("mock failure")
-	client, clusterID, err := cloudInit()
+	client, err := cloudInit()
 	mockKubeCtlErr = nil
 	assert.Nil(t, client)
-	assert.Equal(t, clusterID, "")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "mock failure")
-
-	// Config map for the ClusterID does not exist
-	mockKubeCtl = fake.NewSimpleClientset()
-	client, clusterID, err = cloudInit()
-	assert.NotNil(t, client)
-	assert.Equal(t, clusterID, "")
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "failed to get kube-system/cluster-info config map")
-
-	// Config map for the ClusterID does not exist
-	mockKubeCtl = fake.NewSimpleClientset(mockConfigMap)
-	client, clusterID, err = cloudInit()
-	assert.NotNil(t, client)
-	assert.Equal(t, clusterID, mockClusterID)
-	assert.Nil(t, err)
-}
-func TestGetClusterIDFromINIFile(t *testing.T) {
-	// The INI file does not exist
-	clusterID, err := getClusterIDFromINIFile("../../test-fixtures/ibm-cloud-config-nosuchfile.ini")
-	assert.Equal(t, clusterID, "")
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "missing INI file")
-
-	// The INI format is invalid, so it causes fatal error
-	clusterID, err = getClusterIDFromINIFile("../../test-fixtures/ibm-cloud-config-error.ini")
-	assert.Equal(t, clusterID, "")
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "fatal error occurs during the INI file processing")
-
-	// The clusterID key is missing from INI file
-	clusterID, err = getClusterIDFromINIFile("../../test-fixtures/ibm-cloud-config-missing.ini")
-	assert.Equal(t, clusterID, "")
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "missing or empty ClusterID in INI file")
-
-	// The clusterID value is empty in INI file
-	clusterID, err = getClusterIDFromINIFile("../../test-fixtures/ibm-cloud-config-empty.ini")
-	assert.Equal(t, clusterID, "")
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "missing or empty ClusterID in INI file")
-
-	// Success
-	clusterID, err = getClusterIDFromINIFile("../../test-fixtures/ibm-cloud-config-good.ini")
-	assert.Equal(t, clusterID, "testclusterID")
-	assert.Nil(t, err)
-}
-func TestGetClusterID(t *testing.T) {
-	// Config map does not exist
-	client := fake.NewSimpleClientset()
-	clusterID, err := getClusterID(client)
-	assert.Equal(t, clusterID, "")
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "failed to get kube-system/cluster-info config map")
-
-	// Config map is empty
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: clusterConfigMap, Namespace: clusterNamespace},
-	}
-	client = fake.NewSimpleClientset(cm)
-	clusterID, err = getClusterID(client)
-	assert.Equal(t, clusterID, "")
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "kube-system/cluster-info config map does not contain key")
-
-	// Config map contains bad json data
-	cm = &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: clusterConfigMap, Namespace: clusterNamespace},
-		Data:       map[string]string{clusterConfigKey: "bad json data"},
-	}
-	client = fake.NewSimpleClientset(cm)
-	clusterID, err = getClusterID(client)
-	assert.Equal(t, clusterID, "")
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "failed to un-marshall config data")
-
-	// Success
-	cm = &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: clusterConfigMap, Namespace: clusterNamespace},
-		Data:       map[string]string{clusterConfigKey: `{ "cluster_id": "bk97be720oupmg8m9m30" }`},
-	}
-	client = fake.NewSimpleClientset(cm)
-	clusterID, err = getClusterID(client)
-	assert.Equal(t, clusterID, "bk97be720oupmg8m9m30")
-	assert.Nil(t, err)
 }
 
 func TestGetKubectl(t *testing.T) {

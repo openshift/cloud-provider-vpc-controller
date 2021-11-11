@@ -17,7 +17,7 @@
 * limitations under the License.
 *******************************************************************************/
 
-package vpclb
+package vpcctl
 
 import (
 	"testing"
