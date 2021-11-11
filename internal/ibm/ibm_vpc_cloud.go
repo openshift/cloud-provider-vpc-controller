@@ -72,6 +72,7 @@ func (c *Cloud) NewConfigVpc(enablePrivateEndpoint bool) (*vpcctl.ConfigVpc, err
 	}
 	// Initialize config based on values in the cloud provider
 	config := &vpcctl.ConfigVpc{
+		AccountID:         c.Config.Prov.AccountID,
 		ClusterID:         c.Config.Prov.ClusterID,
 		EnablePrivate:     enablePrivateEndpoint,
 		ProviderType:      c.Config.Prov.ProviderType,
