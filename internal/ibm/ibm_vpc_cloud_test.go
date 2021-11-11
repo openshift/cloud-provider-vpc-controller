@@ -62,6 +62,7 @@ func TestCloud_NewConfigVpc(t *testing.T) {
 	// Test failure to read credentials from file
 	c.Config = &CloudConfig{Prov: Provider{
 		Region:                   "us-south",
+		AccountID:                "accountID",
 		ClusterID:                "clusterID",
 		ProviderType:             "g2",
 		G2Credentials:            "../../test-fixtures/missing-file.txt",
@@ -76,11 +77,12 @@ func TestCloud_NewConfigVpc(t *testing.T) {
 	assert.Contains(t, err.Error(), "Failed to read credentials")
 
 	// Successfully return ConfigVpc
-	c.Config.Prov.G2Credentials = "../../test-fixtures/creds.txt"
+	c.Config.Prov.G2Credentials = ""
 	config, err = c.NewConfigVpc(true)
 	assert.NotNil(t, config)
 	assert.Nil(t, err)
-	assert.Equal(t, config.APIKeySecret, "apiKey-1234")
+	assert.Equal(t, config.AccountID, "accountID")
+	assert.Equal(t, config.APIKeySecret, "")
 	assert.Equal(t, config.ClusterID, "clusterID")
 	assert.Equal(t, config.EnablePrivate, true)
 	assert.Equal(t, config.ProviderType, "g2")

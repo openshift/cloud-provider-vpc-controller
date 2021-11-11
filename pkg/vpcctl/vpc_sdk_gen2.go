@@ -78,7 +78,7 @@ func convertResourceGroupNameToID(c *ConfigVpc) error {
 		return fmt.Errorf("Failed to create resource manager v2 client: %v", err)
 	}
 	// Retrieve the resource group
-	listOptions := &resourcemanagerv2.ListResourceGroupsOptions{Name: &c.ResourceGroupName}
+	listOptions := &resourcemanagerv2.ListResourceGroupsOptions{AccountID: &c.AccountID, Name: &c.ResourceGroupName}
 	list, response, err := client.ListResourceGroups(listOptions)
 	if err != nil {
 		if response != nil {
