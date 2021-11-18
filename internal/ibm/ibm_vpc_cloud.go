@@ -96,8 +96,7 @@ func (c *Cloud) NewConfigVpc(enablePrivateEndpoint bool) (*vpcctl.ConfigVpc, err
 // VpcEnsureLoadBalancer - Creates a new VPC load balancer or updates the existing one. Returns the status of the balancer
 func (c *Cloud) VpcEnsureLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) (*v1.LoadBalancerStatus, error) {
 	lbName := c.vpcGetLoadBalancerName(service)
-	klog.Infof("EnsureLoadBalancer(%v, %v, %v) - Service Name: %v - Selector: %v",
-		lbName, clusterName, service.Annotations, service.Name, service.Spec.Selector)
+	klog.Infof("EnsureLoadBalancer(%v, %v, %+v)", lbName, clusterName, service)
 	vpc, err := c.InitCloudVpc(true)
 	if err != nil {
 		errString := fmt.Sprintf("Failed initializing VPC: %v", err)
@@ -116,7 +115,7 @@ func (c *Cloud) VpcEnsureLoadBalancer(ctx context.Context, clusterName string, s
 // returning nil if the load balancer specified either didn't exist or was successfully deleted.
 func (c *Cloud) VpcEnsureLoadBalancerDeleted(ctx context.Context, clusterName string, service *v1.Service) error {
 	lbName := c.vpcGetLoadBalancerName(service)
-	klog.Infof("EnsureLoadBalancerDeleted(%v, %v, %v)", lbName, clusterName, service)
+	klog.Infof("EnsureLoadBalancerDeleted(%v, %v, %+v)", lbName, clusterName, service)
 	vpc, err := c.InitCloudVpc(true)
 	if err != nil {
 		errString := fmt.Sprintf("Failed initializing VPC: %v", err)
@@ -213,6 +212,12 @@ func (c *Cloud) VpcHandleSecretUpdate(oldObj, newObj interface{}) {
 // `status` is a map from a load balancer's unique Service ID to its status.
 // This persists load balancer status between consecutive monitor calls.
 func (c *Cloud) VpcMonitorLoadBalancers(services *v1.ServiceList, status map[string]string) {
+	// If there are no load balancer services to monitor, don't even initCloudVpc, just return.
+	if services == nil || len(services.Items) == 0 {
+		klog.Infof("No Load Balancers to monitor, returning")
+		return
+	}
+
 	vpc, err := c.InitCloudVpc(true)
 	if err != nil {
 		klog.Errorf("Failed initializing VPC: %v", err)
@@ -271,7 +276,7 @@ func (c *Cloud) VpcMonitorLoadBalancers(services *v1.ServiceList, status map[str
 // VpcUpdateLoadBalancer updates hosts under the specified load balancer
 func (c *Cloud) VpcUpdateLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) error {
 	lbName := c.vpcGetLoadBalancerName(service)
-	klog.Infof("UpdateLoadBalancer(%v, %v, %v, %v)", lbName, clusterName, service, len(nodes))
+	klog.Infof("UpdateLoadBalancer(%v, %v, %+v, %v)", lbName, clusterName, service, len(nodes))
 	vpc, err := c.InitCloudVpc(true)
 	if err != nil {
 		errString := fmt.Sprintf("Failed initializing VPC: %v", err)

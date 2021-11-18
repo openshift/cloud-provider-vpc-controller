@@ -283,6 +283,9 @@ func TestCloud_VpcMonitorLoadBalancers(t *testing.T) {
 	// VpcUpdateLoadBalancer failed, service list was not passed in
 	cloud.VpcMonitorLoadBalancers(nil, dataMap)
 
+	// VpcUpdateLoadBalancer failed, service list was not passed in
+	cloud.VpcMonitorLoadBalancers(&v1.ServiceList{Items: []v1.Service{}}, dataMap)
+
 	// VpcUpdateLoadBalancer success, no existing data
 	serviceList = &v1.ServiceList{Items: []v1.Service{serviceNodePort, serviceNotFound, serviceNotReady}}
 	cloud.VpcMonitorLoadBalancers(serviceList, dataMap)

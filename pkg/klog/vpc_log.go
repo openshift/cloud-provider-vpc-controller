@@ -39,7 +39,8 @@ func Errorf(format string, v ...interface{}) {
 	if logStdout {
 		fmt.Printf("ERROR: "+format+"\n", v...)
 	} else {
-		klog.Errorf(format, v...)
+		s := fmt.Sprintf(format, v...)
+		klog.ErrorDepth(1, s)
 	}
 }
 
@@ -49,7 +50,8 @@ func Infof(format string, v ...interface{}) {
 		timestamp := time.Now().Format("15:04:05.0000")
 		fmt.Printf("INFO: ["+timestamp+"] "+format+"\n", v...)
 	} else {
-		klog.Infof(format, v...)
+		s := fmt.Sprintf(format, v...)
+		klog.InfoDepth(1, s)
 	}
 }
 
@@ -58,7 +60,8 @@ func NotFound(format string, v ...interface{}) {
 	if logStdout {
 		fmt.Printf("NOT_FOUND: "+format+"\n", v...)
 	} else {
-		klog.Infof("NOT_FOUND: "+format, v...)
+		s := fmt.Sprintf("NOT_FOUND: "+format, v...)
+		klog.InfoDepth(1, s)
 	}
 }
 
@@ -67,7 +70,8 @@ func Pending(format string, v ...interface{}) {
 	if logStdout {
 		fmt.Printf("PENDING: "+format+"\n", v...)
 	} else {
-		klog.Infof("PENDING: "+format, v...)
+		s := fmt.Sprintf("PENDING: "+format, v...)
+		klog.InfoDepth(1, s)
 	}
 }
 
@@ -76,7 +80,8 @@ func Success(format string, v ...interface{}) {
 	if logStdout {
 		fmt.Printf("SUCCESS: "+format+"\n", v...)
 	} else {
-		klog.Infof("SUCCESS: "+format, v...)
+		s := fmt.Sprintf("SUCCESS: "+format, v...)
+		klog.InfoDepth(1, s)
 	}
 }
 
@@ -85,6 +90,7 @@ func Warningf(format string, v ...interface{}) {
 	if logStdout {
 		fmt.Printf("WARNING: "+format+"\n", v...)
 	} else {
-		klog.Warningf(format, v...)
+		s := fmt.Sprintf(format, v...)
+		klog.WarningDepth(1, s)
 	}
 }
