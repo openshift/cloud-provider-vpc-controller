@@ -96,7 +96,12 @@ func (c *Cloud) NewConfigVpc(enablePrivateEndpoint bool) (*vpcctl.ConfigVpc, err
 // VpcEnsureLoadBalancer - Creates a new VPC load balancer or updates the existing one. Returns the status of the balancer
 func (c *Cloud) VpcEnsureLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) (*v1.LoadBalancerStatus, error) {
 	lbName := c.vpcGetLoadBalancerName(service)
-	klog.Infof("EnsureLoadBalancer(%v, %v, %+v)", lbName, clusterName, service)
+	klog.Infof("EnsureLoadBalancer(lbName:%v, Service:{%v}, NodeCount:%v)", lbName, c.vpcGetServiceDetails(service), len(nodes))
+	if len(nodes) == 0 {
+		errString := "There are no available nodes for LoadBalancer"
+		klog.Errorf(errString)
+		return nil, fmt.Errorf(errString)
+	}
 	vpc, err := c.InitCloudVpc(true)
 	if err != nil {
 		errString := fmt.Sprintf("Failed initializing VPC: %v", err)
@@ -115,7 +120,7 @@ func (c *Cloud) VpcEnsureLoadBalancer(ctx context.Context, clusterName string, s
 // returning nil if the load balancer specified either didn't exist or was successfully deleted.
 func (c *Cloud) VpcEnsureLoadBalancerDeleted(ctx context.Context, clusterName string, service *v1.Service) error {
 	lbName := c.vpcGetLoadBalancerName(service)
-	klog.Infof("EnsureLoadBalancerDeleted(%v, %v, %+v)", lbName, clusterName, service)
+	klog.Infof("EnsureLoadBalancerDeleted(lbName:%v, Service:{%v})", lbName, c.vpcGetServiceDetails(service))
 	vpc, err := c.InitCloudVpc(true)
 	if err != nil {
 		errString := fmt.Sprintf("Failed initializing VPC: %v", err)
@@ -138,7 +143,7 @@ func (c *Cloud) vpcGetEventMessage(status string) string {
 	case vpcLbStatusOfflineMaintenancePending:
 		return "The VPC load balancer that routes requests to this Kubernetes LoadBalancer service is under maintenance."
 	case vpcLbStatusOfflineNotFound:
-		return "The VPC load balancer that routes requests to this Kubernetes LoadBalancer service was deleted from your VPC account. To recreate the VPC load balancer, restart the Kubernetes master by running 'ibmcloud ks cluster master refresh --cluster <cluster_name_or_id>'."
+		return "The VPC load balancer that routes requests to this Kubernetes LoadBalancer service was not found. To recreate the VPC load balancer, restart the Kubernetes master by running 'ibmcloud ks cluster master refresh --cluster <cluster_name_or_id>'."
 	default:
 		return fmt.Sprintf("The VPC load balancer that routes requests to this Kubernetes LoadBalancer service is currently %s.", status)
 	}
@@ -148,7 +153,7 @@ func (c *Cloud) vpcGetEventMessage(status string) string {
 // if so, what its status is.
 func (c *Cloud) VpcGetLoadBalancer(ctx context.Context, clusterName string, service *v1.Service) (*v1.LoadBalancerStatus, bool, error) {
 	lbName := c.vpcGetLoadBalancerName(service)
-	klog.Infof("GetLoadBalancer(%v, %v)", lbName, clusterName)
+	klog.Infof("GetLoadBalancer(lbName:%v, Service:{%v})", lbName, c.vpcGetServiceDetails(service))
 	vpc, err := c.InitCloudVpc(true)
 	if err != nil {
 		errString := fmt.Sprintf("Failed initializing VPC: %v", err)
@@ -173,6 +178,35 @@ func (c *Cloud) vpcGetLoadBalancerName(service *v1.Service) string {
 		ret = ret[:63]
 	}
 	return ret
+}
+
+// vpcGetServiceDetails - Returns the string of the Kube LB service key fields
+func (c *Cloud) vpcGetServiceDetails(service *v1.Service) string {
+	if service == nil {
+		return "<nil>"
+	}
+	// Only include the service annotations that we care about in the log
+	annotations := map[string]string{}
+	for k, v := range service.ObjectMeta.Annotations {
+		if strings.Contains(k, "ibm-load-balancer-cloud-provider") {
+			annotations[k] = v
+		}
+	}
+	// Only include the port information that we care about: protocol, ext port, node port
+	ports := []string{}
+	for _, port := range service.Spec.Ports {
+		portString := fmt.Sprintf("%v-%v-%v", port.Protocol, port.Port, port.NodePort)
+		ports = append(ports, strings.ToLower(portString))
+	}
+	return fmt.Sprintf("Name:%v NameSpace:%v UID:%v Annotations:%v Ports:%v ExternalTrafficPolicy:%v HealthCheckNodePort:%v Status:%+v",
+		service.ObjectMeta.Name,
+		service.ObjectMeta.Namespace,
+		service.ObjectMeta.UID,
+		annotations,
+		ports,
+		service.Spec.ExternalTrafficPolicy,
+		service.Spec.HealthCheckNodePort,
+		service.Status)
 }
 
 // VpcHandleSecret is called to process the add/delete/update of a Kubernetes secret
@@ -276,7 +310,12 @@ func (c *Cloud) VpcMonitorLoadBalancers(services *v1.ServiceList, status map[str
 // VpcUpdateLoadBalancer updates hosts under the specified load balancer
 func (c *Cloud) VpcUpdateLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) error {
 	lbName := c.vpcGetLoadBalancerName(service)
-	klog.Infof("UpdateLoadBalancer(%v, %v, %+v, %v)", lbName, clusterName, service, len(nodes))
+	klog.Infof("UpdateLoadBalancer(lbName:%v, Service:{%v}, NodeCount:%v)", lbName, c.vpcGetServiceDetails(service), len(nodes))
+	if len(nodes) == 0 {
+		errString := "There are no available nodes for LoadBalancer"
+		klog.Errorf(errString)
+		return fmt.Errorf(errString)
+	}
 	vpc, err := c.InitCloudVpc(true)
 	if err != nil {
 		errString := fmt.Sprintf("Failed initializing VPC: %v", err)
@@ -286,6 +325,9 @@ func (c *Cloud) VpcUpdateLoadBalancer(ctx context.Context, clusterName string, s
 	// Update the VPC load balancer
 	err = vpc.VpcUpdateLoadBalancer(lbName, service, nodes)
 	if err != nil {
+		if strings.Contains(err.Error(), "Load balancer not found") {
+			return nil
+		}
 		return c.Recorder.VpcLoadBalancerServiceWarningEvent(service, UpdatingCloudLoadBalancerFailed, lbName, err.Error())
 	}
 	return nil

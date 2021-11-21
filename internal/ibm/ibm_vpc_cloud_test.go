@@ -122,7 +122,7 @@ func TestCloud_VpcEnsureLoadBalancer(t *testing.T) {
 	status, err = cloud.VpcEnsureLoadBalancer(context.Background(), clusterName, service, []*v1.Node{})
 	assert.Nil(t, status)
 	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Failed ensuring LoadBalancer")
+	assert.Contains(t, err.Error(), "There are no available nodes for LoadBalancer")
 
 	// VpcEnsureLoadBalancer successful, existing LB was updated
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
@@ -332,7 +332,7 @@ func TestCloud_VpcUpdateLoadBalancer(t *testing.T) {
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
 	err = cloud.VpcUpdateLoadBalancer(context.Background(), clusterName, service, []*v1.Node{})
 	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Failed updating LoadBalancer")
+	assert.Contains(t, err.Error(), "There are no available nodes for LoadBalancer")
 
 	// VpcUpdateLoadBalancer successful, existing LB was updated
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
