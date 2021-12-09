@@ -20,7 +20,7 @@
 language: go
 
 go:
-- 1.16.9
+- 1.16.10
 
 cache:
   bundler: true
