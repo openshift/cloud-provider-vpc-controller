@@ -3,7 +3,7 @@ module cloud.ibm.com/cloud-provider-vpc-controller
 go 1.16
 
 require (
-	github.com/IBM/go-sdk-core/v5 v5.9.0
+	github.com/IBM/go-sdk-core/v5 v5.9.1
 	github.com/IBM/platform-services-go-sdk v0.22.6
 	github.com/IBM/vpc-go-sdk v0.14.0
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
