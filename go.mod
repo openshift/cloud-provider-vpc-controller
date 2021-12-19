@@ -17,8 +17,8 @@ require (
 	github.com/stretchr/testify v1.7.0
 	gopkg.in/gcfg.v1 v1.2.3
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	k8s.io/api v0.23.0
-	k8s.io/apimachinery v0.23.0
-	k8s.io/client-go v0.23.0
+	k8s.io/api v0.23.1
+	k8s.io/apimachinery v0.23.1
+	k8s.io/client-go v0.23.1
 	k8s.io/klog/v2 v2.30.0
 )
