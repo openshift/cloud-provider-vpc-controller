@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/IBM/go-sdk-core/v5 v5.9.1
-	github.com/IBM/platform-services-go-sdk v0.22.6
+	github.com/IBM/platform-services-go-sdk v0.22.7
 	github.com/IBM/vpc-go-sdk v0.14.0
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/go-openapi/errors v0.20.1 // indirect
@@ -20,5 +20,5 @@ require (
 	k8s.io/api v0.23.1
 	k8s.io/apimachinery v0.23.1
 	k8s.io/client-go v0.23.1
-	k8s.io/klog/v2 v2.30.0
+	k8s.io/klog/v2 v2.40.1
 )

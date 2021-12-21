@@ -94,11 +94,7 @@ func TestCloud_NewConfigVpc(t *testing.T) {
 }
 
 func TestCloud_VpcEnsureLoadBalancer(t *testing.T) {
-	s, _ := vpcctl.NewVpcSdkFake()
-	c := &vpcctl.CloudVpc{
-		KubeClient: fake.NewSimpleClientset(),
-		Config:     &vpcctl.ConfigVpc{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeFake},
-		Sdk:        s}
+	c, _ := vpcctl.NewCloudVpc(fake.NewSimpleClientset(), &vpcctl.ConfigVpc{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeFake})
 	cloud := Cloud{
 		KubeClient: fake.NewSimpleClientset(),
 		Config:     &CloudConfig{Prov: Provider{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeGen2}},
@@ -133,8 +129,7 @@ func TestCloud_VpcEnsureLoadBalancer(t *testing.T) {
 }
 
 func TestCloud_VpcEnsureLoadBalancerDeleted(t *testing.T) {
-	s, _ := vpcctl.NewVpcSdkFake()
-	c := &vpcctl.CloudVpc{Sdk: s}
+	c, _ := vpcctl.NewCloudVpc(fake.NewSimpleClientset(), &vpcctl.ConfigVpc{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeFake})
 	cloud := Cloud{
 		KubeClient: fake.NewSimpleClientset(),
 		Config:     &CloudConfig{Prov: Provider{ClusterID: "clusterID"}},
@@ -165,8 +160,7 @@ func TestCloud_VpcEnsureLoadBalancerDeleted(t *testing.T) {
 }
 
 func TestCloud_VpcGetLoadBalancer(t *testing.T) {
-	s, _ := vpcctl.NewVpcSdkFake()
-	c := &vpcctl.CloudVpc{Sdk: s}
+	c, _ := vpcctl.NewCloudVpc(fake.NewSimpleClientset(), &vpcctl.ConfigVpc{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeFake})
 	cloud := Cloud{
 		Config:   &CloudConfig{Prov: Provider{ClusterID: "clusterID"}},
 		Recorder: NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
@@ -253,11 +247,7 @@ func TestCloud_VpcHandleSecretUpdate(t *testing.T) {
 }
 
 func TestCloud_VpcMonitorLoadBalancers(t *testing.T) {
-	s, _ := vpcctl.NewVpcSdkFake()
-	c := &vpcctl.CloudVpc{
-		Sdk:    s,
-		Config: &vpcctl.ConfigVpc{ClusterID: "clusterID"},
-	}
+	c, _ := vpcctl.NewCloudVpc(fake.NewSimpleClientset(), &vpcctl.ConfigVpc{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeFake})
 	cloud := Cloud{
 		Config:   &CloudConfig{Prov: Provider{ClusterID: "clusterID"}},
 		Recorder: NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
@@ -310,8 +300,7 @@ func TestCloud_VpcMonitorLoadBalancers(t *testing.T) {
 }
 
 func TestCloud_VpcUpdateLoadBalancer(t *testing.T) {
-	s, _ := vpcctl.NewVpcSdkFake()
-	c := &vpcctl.CloudVpc{Sdk: s}
+	c, _ := vpcctl.NewCloudVpc(fake.NewSimpleClientset(), &vpcctl.ConfigVpc{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeFake})
 	cloud := Cloud{
 		Config:   &CloudConfig{Prov: Provider{ClusterID: "clusterID"}},
 		Recorder: NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),

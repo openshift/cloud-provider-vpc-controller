@@ -29,11 +29,7 @@ import (
 )
 
 func TestCloud_VpcEnsureLoadBalancer(t *testing.T) {
-	s, _ := NewVpcSdkFake()
-	c := &CloudVpc{
-		KubeClient: fake.NewSimpleClientset(),
-		Config:     &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake},
-		Sdk:        s}
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
 	node := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.0.1", Labels: map[string]string{}}}
 
 	// VpcEnsureLoadBalancer failed, required argument is missing
@@ -84,8 +80,7 @@ func TestCloud_VpcEnsureLoadBalancer(t *testing.T) {
 }
 
 func TestCloud_VpcEnsureLoadBalancerDeleted(t *testing.T) {
-	s, _ := NewVpcSdkFake()
-	c := &CloudVpc{Sdk: s}
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
 
 	// VpcEnsureLoadBalancerDeleted failed, failed to get find the LB
 	c.SetFakeSdkError("FindLoadBalancer")
@@ -117,8 +112,7 @@ func TestCloud_VpcEnsureLoadBalancerDeleted(t *testing.T) {
 }
 
 func TestCloud_VpcGetLoadBalancer(t *testing.T) {
-	s, _ := NewVpcSdkFake()
-	c := &CloudVpc{Sdk: s}
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
 
 	// VpcGetLoadBalancer failed, failed to get find the LB
 	c.SetFakeSdkError("FindLoadBalancer")
@@ -168,8 +162,7 @@ func TestCloud_VpcGetLoadBalancer(t *testing.T) {
 }
 
 func TestCloudVpc_VpcMonitorLoadBalancers(t *testing.T) {
-	s, _ := NewVpcSdkFake()
-	c := &CloudVpc{Config: &ConfigVpc{ClusterID: "clusterID"}, Sdk: s}
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
 	serviceNodePort := v1.Service{
 		ObjectMeta: metav1.ObjectMeta{Name: "nodePort", Namespace: "default", UID: "NodePort"},
 		Spec:       v1.ServiceSpec{Type: v1.ServiceTypeNodePort}}
@@ -207,8 +200,7 @@ func TestCloudVpc_VpcMonitorLoadBalancers(t *testing.T) {
 }
 
 func TestCloud_VpcUpdateLoadBalancer(t *testing.T) {
-	s, _ := NewVpcSdkFake()
-	c := &CloudVpc{Sdk: s}
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
 	node := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.0.1", Labels: map[string]string{}}}
 
 	// VpcUpdateLoadBalancer failed, failed to get find the LB
