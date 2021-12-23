@@ -37,16 +37,13 @@ func TestCloudVpc_CreateLoadBalancer(t *testing.T) {
 			Type:                  v1.ServiceTypeLoadBalancer,
 			Ports:                 []v1.ServicePort{{Protocol: v1.ProtocolTCP, Port: 80, NodePort: 31000}},
 		}}
-	sdk, _ := NewVpcSdkFake()
-	c := &CloudVpc{
-		Config: &ConfigVpc{
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(),
+		&ConfigVpc{
+			ClusterID:    "clusterID",
 			ProviderType: VpcProviderTypeFake,
 			SubnetNames:  "subnet1",
 			VpcName:      "vpc",
-		},
-		Sdk:        sdk,
-		KubeClient: fake.NewSimpleClientset(),
-	}
+		})
 	// Create load balancer failed, name not specified
 	lb, err := c.CreateLoadBalancer("", service, []*v1.Node{})
 	assert.Nil(t, lb)
@@ -128,8 +125,7 @@ func TestCloudVpc_CreateLoadBalancer(t *testing.T) {
 }
 
 func TestCloudVpc_DeleteLoadBalancer(t *testing.T) {
-	s, _ := NewVpcSdkFake()
-	c := &CloudVpc{Sdk: s}
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
 
 	// Delete load balancer failed, LB not specified
 	err := c.DeleteLoadBalancer(nil, nil)
@@ -143,8 +139,8 @@ func TestCloudVpc_DeleteLoadBalancer(t *testing.T) {
 }
 
 func TestCloudVpc_FindLoadBalancer(t *testing.T) {
-	s, _ := NewVpcSdkFake()
-	c := &CloudVpc{Sdk: s}
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+
 	// Load balancer failed, name not specified
 	lb, err := c.FindLoadBalancer("", nil)
 	assert.Nil(t, lb)
@@ -162,7 +158,8 @@ func TestCloudVpc_FindLoadBalancer(t *testing.T) {
 }
 
 func TestCloudVpc_GetLoadBalancerStatus(t *testing.T) {
-	c := &CloudVpc{}
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+
 	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{
 		Name: "echo-server", Namespace: "default"}}
 	// Standard VPC LB
@@ -191,12 +188,8 @@ func TestCloudVpc_UpdateLoadBalancer(t *testing.T) {
 			Type:                  v1.ServiceTypeLoadBalancer,
 			Ports:                 []v1.ServicePort{{Protocol: v1.ProtocolTCP, Port: 80, NodePort: 30303}},
 		}}
-	sdk, _ := NewVpcSdkFake()
-	c := &CloudVpc{
-		Sdk:        sdk,
-		Config:     &ConfigVpc{ClusterID: "clusterID"},
-		KubeClient: fake.NewSimpleClientset(),
-	}
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+
 	// Update load balancer failed, name not specified
 	lb, err := c.UpdateLoadBalancer(nil, service, []*v1.Node{node})
 	assert.Nil(t, lb)
@@ -293,7 +286,7 @@ func TestCloudVpc_UpdateLoadBalancer(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "DeleteLoadBalancerListener failed")
 	c.ClearFakeSdkError("DeleteLoadBalancerListener")
-	sdk, _ = NewVpcSdkFake()
+	sdk, _ := NewVpcSdkFake()
 	c.Sdk = sdk
 	service.Spec.Ports[0].Port = 80
 
@@ -411,8 +404,7 @@ func TestCloudVpc_UpdateLoadBalancer(t *testing.T) {
 }
 
 func TestCloudVpc_WaitLoadBalancerReady(t *testing.T) {
-	s, _ := NewVpcSdkFake()
-	c := &CloudVpc{Sdk: s}
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
 	lb := &VpcLoadBalancer{
 		ID:                 "Ready",
 		OperatingStatus:    LoadBalancerOperatingStatusOffline,

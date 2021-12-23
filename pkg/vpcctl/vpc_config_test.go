@@ -365,9 +365,7 @@ func TestCloudVpc_FindNodesMatchingLabelValue(t *testing.T) {
 
 func TestCloudVpc_GenerateLoadBalancerName(t *testing.T) {
 	clusterID := "12345678901234567890"
-	c := &CloudVpc{
-		Config: &ConfigVpc{ClusterID: clusterID},
-	}
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: clusterID, ProviderType: VpcProviderTypeFake})
 	kubeService := &v1.Service{ObjectMeta: metav1.ObjectMeta{
 		Name: "echo-server", Namespace: "default", UID: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"}}
 	lbName := VpcLbNamePrefix + "-" + clusterID + "-" + string(kubeService.UID)
@@ -461,7 +459,7 @@ func TestCloudVpc_GetServiceMemberQuota(t *testing.T) {
 }
 
 func TestCloudVpc_getServicePoolNames(t *testing.T) {
-	c := &CloudVpc{}
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
 	service := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default",
 			Annotations: map[string]string{}},

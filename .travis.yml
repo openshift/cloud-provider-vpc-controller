@@ -20,7 +20,7 @@
 language: go
 
 go:
-- 1.16.9
+  - 1.17.4
 
 cache:
   bundler: true
@@ -32,4 +32,4 @@ before_install:
   - make deps
 
 script:
-- make all build
+  - make all build
