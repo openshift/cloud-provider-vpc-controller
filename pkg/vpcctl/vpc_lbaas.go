@@ -480,6 +480,37 @@ func (c *CloudVpc) FindLoadBalancer(nameID string, service *v1.Service) (*VpcLoa
 	return nil, nil
 }
 
+// GatherLoadBalancers - gather the VPC load balancers for the current cluster
+func (c *CloudVpc) GatherLoadBalancers(services *v1.ServiceList) (map[string]*VpcLoadBalancer, error) {
+	// Verify that we have at least one Kubernetes load balancer before searching for VPC LBs
+	foundKubeLB := false
+	for _, service := range services.Items {
+		if service.Spec.Type == v1.ServiceTypeLoadBalancer {
+			foundKubeLB = true
+			break
+		}
+	}
+	// If no Kubernetes load balancer services were found, return with an empty VPC map
+	vpcMap := map[string]*VpcLoadBalancer{}
+	if !foundKubeLB {
+		return vpcMap, nil
+	}
+	// Retrieve all VPC load balancers in the current account
+	lbs, err := c.Sdk.ListLoadBalancers()
+	if err != nil {
+		return vpcMap, err
+	}
+	// Only return VPC LBs that are in the current cluster
+	currentCluster := "-" + c.Config.ClusterID + "-"
+	for _, lb := range lbs {
+		if strings.Contains(lb.Name, currentCluster) {
+			lbPtr := lb
+			vpcMap[lb.Name] = lbPtr
+		}
+	}
+	return vpcMap, nil
+}
+
 // GetLoadBalancerStatus returns the load balancer status for a given VPC host name
 func (c *CloudVpc) GetLoadBalancerStatus(service *v1.Service, hostname string) *v1.LoadBalancerStatus {
 	lbStatus := &v1.LoadBalancerStatus{}
