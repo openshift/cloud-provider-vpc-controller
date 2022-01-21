@@ -22,6 +22,7 @@ package vpcctl
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/klog"
 	v1 "k8s.io/api/core/v1"
@@ -155,10 +156,19 @@ func (c *CloudVpc) VpcMonitorLoadBalancers(services *v1.ServiceList) (map[string
 		klog.Errorf("Required argument is missing")
 		return nil, nil, errors.New("Required argument is missing")
 	}
-	// Retrieve load balancers for the current cluster
-	vpcMap, err := c.GatherLoadBalancers(services)
+	// Retrieve list of all load balancers
+	lbs, err := c.Sdk.ListLoadBalancers()
 	if err != nil {
 		return nil, nil, err
+	}
+	// Create map of VPC LBs. Do not include LBs that are in different cluster
+	vpcMap := map[string]*VpcLoadBalancer{}
+	currentCluster := "-" + c.Config.ClusterID + "-"
+	for _, lb := range lbs {
+		if strings.Contains(lb.Name, currentCluster) {
+			lbPtr := lb
+			vpcMap[lb.Name] = lbPtr
+		}
 	}
 	// Create map of Kube node port and LB services
 	lbMap := map[string]*v1.Service{}

@@ -1,6 +1,6 @@
 /*******************************************************************************
 * IBM Cloud Kubernetes Service, 5737-D43
-* (C) Copyright IBM Corp. 2021 All Rights Reserved.
+* (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
 *
 * SPDX-License-Identifier: Apache2.0
 *
@@ -154,39 +154,6 @@ func TestCloudVpc_FindLoadBalancer(t *testing.T) {
 	// Load balancer was found
 	lb, err = c.FindLoadBalancer("Ready", nil)
 	assert.NotNil(t, lb)
-	assert.Nil(t, err)
-}
-
-func TestCloudVpc_GatherLoadBalancers(t *testing.T) {
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
-	serviceList := &v1.ServiceList{}
-
-	// Gather load balancer passed empty Kubernetes service list, return empty map
-	vpcMap, err := c.GatherLoadBalancers(serviceList)
-	assert.Equal(t, len(vpcMap), 0)
-	assert.Nil(t, err)
-
-	// ListLoadBalancers failed, return error
-	serviceNodePort := v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: "nodePort", Namespace: "default", UID: "NodePort"},
-		Spec:       v1.ServiceSpec{Type: v1.ServiceTypeNodePort}}
-	serviceNotFound := v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: "notFound", Namespace: "default", UID: "NotFound"},
-		Spec:       v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
-	serviceNotReady := v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: "notReady", Namespace: "default", UID: "NotReady"},
-		Spec:       v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
-	serviceList = &v1.ServiceList{Items: []v1.Service{serviceNodePort, serviceNotFound, serviceNotReady}}
-	c.SetFakeSdkError("ListLoadBalancers")
-	vpcMap, err = c.GatherLoadBalancers(serviceList)
-	assert.Equal(t, len(vpcMap), 0)
-	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "ListLoadBalancers failed")
-	c.ClearFakeSdkError("ListLoadBalancers")
-
-	// VPC Load balancers were found
-	vpcMap, err = c.GatherLoadBalancers(serviceList)
-	assert.Equal(t, len(vpcMap), 2)
 	assert.Nil(t, err)
 }
 
