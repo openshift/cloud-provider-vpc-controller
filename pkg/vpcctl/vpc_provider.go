@@ -163,9 +163,9 @@ func (c *CloudVpc) VpcMonitorLoadBalancers(services *v1.ServiceList) (map[string
 	}
 	// Create map of VPC LBs. Do not include LBs that are in different cluster
 	vpcMap := map[string]*VpcLoadBalancer{}
-	currentCluster := "-" + c.Config.ClusterID + "-"
+	lbPrefix := VpcLbNamePrefix + "-" + c.Config.ClusterID + "-"
 	for _, lb := range lbs {
-		if strings.Contains(lb.Name, currentCluster) {
+		if strings.HasPrefix(lb.Name, lbPrefix) {
 			lbPtr := lb
 			vpcMap[lb.Name] = lbPtr
 		}
