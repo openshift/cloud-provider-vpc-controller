@@ -3,7 +3,7 @@ module cloud.ibm.com/cloud-provider-vpc-controller
 go 1.17
 
 require (
-	github.com/IBM/go-sdk-core/v5 v5.9.1
+	github.com/IBM/go-sdk-core/v5 v5.9.2
 	github.com/IBM/platform-services-go-sdk v0.22.7
 	github.com/IBM/vpc-go-sdk v0.15.0
 	github.com/go-openapi/strfmt v0.21.1
