@@ -9,9 +9,9 @@ require (
 	github.com/go-openapi/strfmt v0.21.2
 	github.com/stretchr/testify v1.7.0
 	gopkg.in/gcfg.v1 v1.2.3
-	k8s.io/api v0.23.3
-	k8s.io/apimachinery v0.23.3
-	k8s.io/client-go v0.23.3
+	k8s.io/api v0.23.4
+	k8s.io/apimachinery v0.23.4
+	k8s.io/client-go v0.23.4
 	k8s.io/klog/v2 v2.40.1
 )
 
