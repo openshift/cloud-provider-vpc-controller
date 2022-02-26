@@ -1,6 +1,6 @@
 /*******************************************************************************
 * IBM Cloud Kubernetes Service, 5737-D43
-* (C) Copyright IBM Corp. 2021 All Rights Reserved.
+* (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
 *
 * SPDX-License-Identifier: Apache2.0
 *
@@ -38,10 +38,20 @@ const (
 	vpcLbStatusOfflineNotFound           = vpcctl.LoadBalancerOperatingStatusOffline + "/not_found"
 )
 
+// GetCloudVpc - Retrieve the VPC cloud object.  Return nil if not initialized.
+func (c *Cloud) GetCloudVpc() *vpcctl.CloudVpc {
+	return c.vpc
+}
+
+// SetCloudVpc - Set the VPC cloud object.  Specify nil to clear value
+func (c *Cloud) SetCloudVpc(vpc *vpcctl.CloudVpc) {
+	c.vpc = vpc
+}
+
 // InitCloudVpc - Initialize the VPC cloud logic
 func (c *Cloud) InitCloudVpc(enablePrivateEndpoint bool) (*vpcctl.CloudVpc, error) {
 	// Extract the VPC cloud object. If set, return it
-	cloudVpc := c.Vpc
+	cloudVpc := c.GetCloudVpc()
 	if cloudVpc != nil {
 		return cloudVpc, nil
 	}
@@ -53,7 +63,7 @@ func (c *Cloud) InitCloudVpc(enablePrivateEndpoint bool) (*vpcctl.CloudVpc, erro
 	// Allocate a new VPC Cloud object and save it if successful
 	cloudVpc, err = vpcctl.NewCloudVpc(c.KubeClient, config)
 	if cloudVpc != nil {
-		c.Vpc = cloudVpc
+		c.SetCloudVpc(cloudVpc)
 	}
 	return cloudVpc, err
 }
@@ -212,14 +222,14 @@ func (c *Cloud) vpcGetServiceDetails(service *v1.Service) string {
 // VpcHandleSecret is called to process the add/delete/update of a Kubernetes secret
 func (c *Cloud) VpcHandleSecret(secret *v1.Secret, action string) {
 	// If the VPC environment has not been initialzed, simply return
-	vpc := c.Vpc
+	vpc := c.GetCloudVpc()
 	if vpc == nil {
 		return
 	}
 	// Check the secret to determine if VPC settings need to be reset
 	if vpc.IsVpcConfigStoredInSecret(secret) {
 		klog.Infof("VCP secret %s/%s had been %s. Reset the VPC config data", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name, action)
-		c.Vpc = nil
+		c.SetCloudVpc(nil)
 	}
 }
 

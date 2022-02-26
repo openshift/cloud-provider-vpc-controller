@@ -1,6 +1,6 @@
 /*******************************************************************************
 * IBM Cloud Kubernetes Service, 5737-D43
-* (C) Copyright IBM Corp. 2021 All Rights Reserved.
+* (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
 *
 * SPDX-License-Identifier: Apache2.0
 *
@@ -61,7 +61,7 @@ type Cloud struct {
 	KubeClient clientset.Interface
 	Config     *CloudConfig
 	Recorder   *CloudEventRecorder
-	Vpc        *vpcctl.CloudVpc
+	vpc        *vpcctl.CloudVpc
 }
 
 // ReadCloudConfig - Read in the cloud configuration
