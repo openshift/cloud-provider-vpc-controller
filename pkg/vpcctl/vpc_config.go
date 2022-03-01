@@ -1,6 +1,6 @@
 /*******************************************************************************
 * IBM Cloud Kubernetes Service, 5737-D43
-* (C) Copyright IBM Corp. 2021 All Rights Reserved.
+* (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
 *
 * SPDX-License-Identifier: Apache2.0
 *
@@ -26,7 +26,7 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/informers"
 )
 
 const (
@@ -81,8 +81,10 @@ var memberNodeLabelsAllowed = [...]string{
 	"topology.kubernetes.io/zone",
 }
 
-// VpcLbNamePrefix - Prefix to be used for VPC load balancer
-var VpcLbNamePrefix = "kube"
+// SetInformers - Configure watch/informers
+func SetInformers(informerFactory informers.SharedInformerFactory) {
+	// No informers/watchers needed
+}
 
 // ConfigVpc is the VPC configuration information
 type ConfigVpc struct {
@@ -101,13 +103,6 @@ type ConfigVpc struct {
 	endpointURL      string
 	resourceGroupID  string
 	tokenExchangeURL string
-}
-
-// CloudVpc is the main VPC cloud provider implementation.
-type CloudVpc struct {
-	KubeClient kubernetes.Interface
-	Config     *ConfigVpc
-	Sdk        CloudVpcSdk
 }
 
 // getIamEndpoint - retrieve the correct IAM endpoint for the current config
@@ -181,23 +176,6 @@ func (c *ConfigVpc) validate() error {
 	}
 	// Validation passed
 	return nil
-}
-
-// NewCloudVpc - create new CloudVpc object based on the config data that was passed in
-func NewCloudVpc(kubeClient kubernetes.Interface, config *ConfigVpc) (*CloudVpc, error) {
-	if config == nil {
-		return nil, fmt.Errorf("Missing cloud configuration")
-	}
-	c := &CloudVpc{KubeClient: kubeClient, Config: config}
-	err := c.Config.initialize()
-	if err != nil {
-		return nil, err
-	}
-	c.Sdk, err = NewCloudVpcSdk(c.Config)
-	if err != nil {
-		return nil, err
-	}
-	return c, nil
 }
 
 // filterNodesByEdgeLabel - extract only the edge nodes if there any any -or- return all nodes
@@ -304,17 +282,6 @@ func (c *CloudVpc) findNodesMatchingLabelValue(nodes []*v1.Node, filterLabel, fi
 	}
 	// Return matching nodes
 	return matchingNodes
-}
-
-// GenerateLoadBalancerName - generate the VPC load balancer name from the cluster ID and Kube service
-func (c *CloudVpc) GenerateLoadBalancerName(service *v1.Service) string {
-	serviceID := strings.ReplaceAll(string(service.ObjectMeta.UID), "-", "")
-	lbName := VpcLbNamePrefix + "-" + c.Config.ClusterID + "-" + serviceID
-	// Limit the LB name to 63 characters
-	if len(lbName) > 63 {
-		lbName = lbName[:63]
-	}
-	return lbName
 }
 
 // getNodeIDs - get the node identifier for each node in the list
@@ -435,6 +402,11 @@ func (c *CloudVpc) getSubnetIDs(subnets []*VpcSubnet) []string {
 	}
 	// Return the IDs of all of the subnets
 	return subnetIDs
+}
+
+// initialize - Initialize the CloudVpc
+func (c *CloudVpc) initialize() error {
+	return c.Config.initialize()
 }
 
 // isServicePortEqualListener - does the specified service port equal the values specified

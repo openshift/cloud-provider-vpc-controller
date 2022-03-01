@@ -40,12 +40,7 @@ const (
 
 // GetCloudVpc - Retrieve the VPC cloud object.  Return nil if not initialized.
 func (c *Cloud) GetCloudVpc() *vpcctl.CloudVpc {
-	return c.vpc
-}
-
-// SetCloudVpc - Set the VPC cloud object.  Specify nil to clear value
-func (c *Cloud) SetCloudVpc(vpc *vpcctl.CloudVpc) {
-	c.vpc = vpc
+	return vpcctl.GetCloudVpc()
 }
 
 // InitCloudVpc - Initialize the VPC cloud logic
@@ -61,11 +56,7 @@ func (c *Cloud) InitCloudVpc(enablePrivateEndpoint bool) (*vpcctl.CloudVpc, erro
 		return nil, err
 	}
 	// Allocate a new VPC Cloud object and save it if successful
-	cloudVpc, err = vpcctl.NewCloudVpc(c.KubeClient, config)
-	if cloudVpc != nil {
-		c.SetCloudVpc(cloudVpc)
-	}
-	return cloudVpc, err
+	return vpcctl.NewCloudVpc(c.KubeClient, config)
 }
 
 // isProviderVpc - Is the current cloud provider running in VPC environment?
@@ -219,38 +210,6 @@ func (c *Cloud) vpcGetServiceDetails(service *v1.Service) string {
 		service.Status)
 }
 
-// VpcHandleSecret is called to process the add/delete/update of a Kubernetes secret
-func (c *Cloud) VpcHandleSecret(secret *v1.Secret, action string) {
-	// If the VPC environment has not been initialzed, simply return
-	vpc := c.GetCloudVpc()
-	if vpc == nil {
-		return
-	}
-	// Check the secret to determine if VPC settings need to be reset
-	if vpc.IsVpcConfigStoredInSecret(secret) {
-		klog.Infof("VCP secret %s/%s had been %s. Reset the VPC config data", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name, action)
-		c.SetCloudVpc(nil)
-	}
-}
-
-// VpcHandleSecretAdd is called when a secret is added
-func (c *Cloud) VpcHandleSecretAdd(obj interface{}) {
-	secret := obj.(*v1.Secret)
-	c.VpcHandleSecret(secret, "added")
-}
-
-// VpcHandleSecretDelete is called when a secret is deleted
-func (c *Cloud) VpcHandleSecretDelete(obj interface{}) {
-	secret := obj.(*v1.Secret)
-	c.VpcHandleSecret(secret, "deleted")
-}
-
-// VpcHandleSecretUpdate is called when a secret is changed
-func (c *Cloud) VpcHandleSecretUpdate(oldObj, newObj interface{}) {
-	secret := newObj.(*v1.Secret)
-	c.VpcHandleSecret(secret, "updated")
-}
-
 // VpcMonitorLoadBalancers accepts a list of services (of all types), verifies that each Kubernetes load balancer service has a
 // corresponding VPC load balancer object, and creates Kubernetes events based on the load balancer's status.
 // `status` is a map from a load balancer's unique Service ID to its status.
@@ -280,6 +239,11 @@ func (c *Cloud) VpcMonitorLoadBalancers(services *v1.ServiceList, status map[str
 		oldStatus := status[serviceID]
 		vpcLB, exists := vpcMap[lbName]
 		if exists {
+			if vpcLB.IsReady() {
+				klog.Infof("VPC LB: %s Service:%s/%s", vpcLB.GetSummary(), service.ObjectMeta.Namespace, service.ObjectMeta.Name)
+			} else {
+				klog.Warningf("VPC LB: %s Service:%s/%s", vpcLB.GetSummary(), service.ObjectMeta.Namespace, service.ObjectMeta.Name)
+			}
 			// Store the new status so its available to the next call to VpcMonitorLoadBalancers()
 			newStatus := vpcLB.GetStatus()
 			status[serviceID] = newStatus
@@ -295,8 +259,6 @@ func (c *Cloud) VpcMonitorLoadBalancers(services *v1.ServiceList, status map[str
 			}
 
 			// If the status of the VPC load balancer is not 'online/active', record warning event if status has not changed since last we checked
-			klog.Infof("VPC load balance not online/active: ServiceID:%s Service:%s/%s %s",
-				string(service.ObjectMeta.UID), service.ObjectMeta.Namespace, service.ObjectMeta.Name, vpcLB.GetSummary())
 			if oldStatus == newStatus {
 				_ = c.Recorder.VpcLoadBalancerServiceWarningEvent(
 					service, VerifyingCloudLoadBalancerFailed, lbName, c.vpcGetEventMessage(newStatus)) // #nosec G104 error is always returned
@@ -307,7 +269,7 @@ func (c *Cloud) VpcMonitorLoadBalancers(services *v1.ServiceList, status map[str
 		}
 
 		// There is no VPC LB for the current Kubernetes load balancer.  Update the status to: "offline/not_found"
-		klog.Warningf("VPC load balancer not found for service %s %s/%s ", serviceID, service.ObjectMeta.Namespace, service.ObjectMeta.Name)
+		klog.Warningf("VPC LB not found for service %s/%s %s", service.ObjectMeta.Namespace, service.ObjectMeta.Name, serviceID)
 		newStatus := vpcLbStatusOfflineNotFound
 		status[serviceID] = newStatus
 		if oldStatus == newStatus {

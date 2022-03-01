@@ -26,7 +26,67 @@ import (
 
 	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/klog"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
+
+// CloudVpc is the main VPC cloud provider implementation.
+type CloudVpc struct {
+	KubeClient kubernetes.Interface
+	Config     *ConfigVpc
+	Sdk        CloudVpcSdk
+}
+
+// Global variables
+var (
+	// Persistent storage for CloudVpc object
+	persistentCloudVpc *CloudVpc
+
+	// VpcLbNamePrefix - Prefix to be used for VPC load balancer
+	VpcLbNamePrefix = "kube"
+)
+
+// GetCloudVpc - Retrieve the global VPC cloud object.  Return nil if not initialized.
+func GetCloudVpc() *CloudVpc {
+	return persistentCloudVpc
+}
+
+// ResetCloudVpc - Resetthe global VPC cloud object
+func ResetCloudVpc() {
+	persistentCloudVpc = nil
+}
+
+// SetCloudVpc - Set the global VPC cloud object.  Specify nil to clear value
+func SetCloudVpc(vpc *CloudVpc) {
+	persistentCloudVpc = vpc
+}
+
+func NewCloudVpc(kubeClient kubernetes.Interface, config *ConfigVpc) (*CloudVpc, error) {
+	if config == nil {
+		return nil, fmt.Errorf("Missing cloud configuration")
+	}
+	c := &CloudVpc{KubeClient: kubeClient, Config: config}
+	err := c.initialize()
+	if err != nil {
+		return nil, err
+	}
+	c.Sdk, err = NewCloudVpcSdk(c.Config)
+	if err != nil {
+		return nil, err
+	}
+	SetCloudVpc(c)
+	return c, nil
+}
+
+// GenerateLoadBalancerName - generate the VPC load balancer name from the cluster ID and Kube service
+func (c *CloudVpc) GenerateLoadBalancerName(service *v1.Service) string {
+	serviceID := strings.ReplaceAll(string(service.ObjectMeta.UID), "-", "")
+	lbName := VpcLbNamePrefix + "-" + c.Config.ClusterID + "-" + serviceID
+	// Limit the LB name to 63 characters
+	if len(lbName) > 63 {
+		lbName = lbName[:63]
+	}
+	return lbName
+}
 
 // VpcEnsureLoadBalancer - called by cloud provider to create/update the load balancer
 func (c *CloudVpc) VpcEnsureLoadBalancer(lbName string, service *v1.Service, nodes []*v1.Node) (*v1.LoadBalancerStatus, error) {

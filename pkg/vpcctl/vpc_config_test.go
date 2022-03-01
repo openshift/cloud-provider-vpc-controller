@@ -1,6 +1,6 @@
 /*******************************************************************************
 * IBM Cloud Kubernetes Service, 5737-D43
-* (C) Copyright IBM Corp. 2021 All Rights Reserved.
+* (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
 *
 * SPDX-License-Identifier: Apache2.0
 *
@@ -361,17 +361,6 @@ func TestCloudVpc_FindNodesMatchingLabelValue(t *testing.T) {
 	inNodes = []*v1.Node{mockNode2}
 	outNodes = mockCloud.findNodesMatchingLabelValue(inNodes, nodeLabelDedicated, nodeLabelValueEdge)
 	assert.Equal(t, len(outNodes), 0)
-}
-
-func TestCloudVpc_GenerateLoadBalancerName(t *testing.T) {
-	clusterID := "12345678901234567890"
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: clusterID, ProviderType: VpcProviderTypeFake})
-	kubeService := &v1.Service{ObjectMeta: metav1.ObjectMeta{
-		Name: "echo-server", Namespace: "default", UID: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"}}
-	lbName := VpcLbNamePrefix + "-" + clusterID + "-" + string(kubeService.UID)
-	lbName = lbName[:63]
-	result := c.GenerateLoadBalancerName(kubeService)
-	assert.Equal(t, result, lbName)
 }
 
 func TestCloudVpc_GetNodeIDs(t *testing.T) {
