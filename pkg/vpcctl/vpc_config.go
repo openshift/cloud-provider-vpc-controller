@@ -427,11 +427,6 @@ func (c *CloudVpc) isServicePublic(service *v1.Service) bool {
 	return value == "" || value == servicePublicLB
 }
 
-// IsVpcConfigStoredInSecret - does the specified secret contain any VPC related config information
-func (c *CloudVpc) IsVpcConfigStoredInSecret(secret *v1.Secret) bool {
-	return false
-}
-
 // validateService - validate the service and the requested features on the service
 func (c *CloudVpc) validateService(service *v1.Service) (string, error) {
 	options := c.getServiceEnabledFeatures(service)

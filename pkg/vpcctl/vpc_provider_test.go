@@ -28,152 +28,128 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func TestCloudVpc_GenerateLoadBalancerName(t *testing.T) {
-	clusterID := "12345678901234567890"
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: clusterID, ProviderType: VpcProviderTypeFake})
-	kubeService := &v1.Service{ObjectMeta: metav1.ObjectMeta{
-		Name: "echo-server", Namespace: "default", UID: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"}}
-	lbName := VpcLbNamePrefix + "-" + clusterID + "-" + string(kubeService.UID)
-	lbName = lbName[:63]
-	result := c.GenerateLoadBalancerName(kubeService)
-	assert.Equal(t, result, lbName)
-}
-
-func TestCloud_VpcEnsureLoadBalancer(t *testing.T) {
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+func TestCloudVpc_EnsureLoadBalancer(t *testing.T) {
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake}, nil)
 	node := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.0.1", Labels: map[string]string{}}}
 
-	// VpcEnsureLoadBalancer failed, required argument is missing
+	// EnsureLoadBalancer failed, required argument is missing
 	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	status, err := c.VpcEnsureLoadBalancer("", service, []*v1.Node{node})
+	status, err := c.EnsureLoadBalancer("", service, []*v1.Node{node})
 	assert.Nil(t, status)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Required argument is missing")
 
-	// VpcEnsureLoadBalancer failed, failed to get find the LB
+	// EnsureLoadBalancer failed, failed to get find the LB
 	c.SetFakeSdkError("FindLoadBalancer")
 	c.SetFakeSdkError("ListLoadBalancers")
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	status, err = c.VpcEnsureLoadBalancer("kube-clusterID-Ready", service, []*v1.Node{node})
+	status, err = c.EnsureLoadBalancer("kube-clusterID-Ready", service, []*v1.Node{node})
 	assert.Nil(t, status)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed getting LoadBalancer")
 	c.ClearFakeSdkError("FindLoadBalancer")
 	c.ClearFakeSdkError("ListLoadBalancers")
 
-	// VpcEnsureLoadBalancer failed, failed to get create LB, no available nodes
+	// EnsureLoadBalancer failed, failed to get create LB, no available nodes
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "NotFound"}}
-	status, err = c.VpcEnsureLoadBalancer("kube-clusterID-NotFound", service, []*v1.Node{})
+	status, err = c.EnsureLoadBalancer("kube-clusterID-NotFound", service, []*v1.Node{})
 	assert.Nil(t, status)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed ensuring LoadBalancer")
 
-	// VpcEnsureLoadBalancer failed, existing LB is busy
+	// EnsureLoadBalancer failed, existing LB is busy
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "NotReady"}}
-	status, err = c.VpcEnsureLoadBalancer("kube-clusterID-NotReady", service, []*v1.Node{})
+	status, err = c.EnsureLoadBalancer("kube-clusterID-NotReady", service, []*v1.Node{})
 	assert.Nil(t, status)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "LoadBalancer is busy")
 
-	// VpcEnsureLoadBalancer failed, failed to update LB, no available nodes
+	// EnsureLoadBalancer failed, failed to update LB, no available nodes
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	status, err = c.VpcEnsureLoadBalancer("kube-clusterID-Ready", service, []*v1.Node{})
+	status, err = c.EnsureLoadBalancer("kube-clusterID-Ready", service, []*v1.Node{})
 	assert.Nil(t, status)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed ensuring LoadBalancer")
 
-	// VpcEnsureLoadBalancer successful, existing LB was updated
+	// EnsureLoadBalancer successful, existing LB was updated
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	status, err = c.VpcEnsureLoadBalancer("kube-clusterID-Ready", service, []*v1.Node{node})
+	status, err = c.EnsureLoadBalancer("kube-clusterID-Ready", service, []*v1.Node{node})
 	assert.NotNil(t, status)
 	assert.Nil(t, err)
 	assert.Equal(t, status.Ingress[0].Hostname, "lb.ibm.com")
 }
 
-func TestCloud_VpcEnsureLoadBalancerDeleted(t *testing.T) {
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+func TestCloudVpc_EnsureLoadBalancerDeleted(t *testing.T) {
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake}, nil)
 
-	// VpcEnsureLoadBalancerDeleted failed, failed to get find the LB
+	// EnsureLoadBalancerDeleted failed, failed to get find the LB
 	c.SetFakeSdkError("FindLoadBalancer")
 	c.SetFakeSdkError("ListLoadBalancers")
 	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	err := c.VpcEnsureLoadBalancerDeleted("kube-clusterID-Ready", service)
+	err := c.EnsureLoadBalancerDeleted("kube-clusterID-Ready", service)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed getting LoadBalancer")
 	c.ClearFakeSdkError("FindLoadBalancer")
 	c.ClearFakeSdkError("ListLoadBalancers")
 
-	// VpcEnsureLoadBalancerDeleted success, existing LB does not exist
+	// EnsureLoadBalancerDeleted success, existing LB does not exist
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "NotFound"}}
-	err = c.VpcEnsureLoadBalancerDeleted("kube-clusterID-NotFound", service)
+	err = c.EnsureLoadBalancerDeleted("kube-clusterID-NotFound", service)
 	assert.Nil(t, err)
 
-	// VpcEnsureLoadBalancerDeleted failed, failed to delete the LB
+	// EnsureLoadBalancerDeleted failed, failed to delete the LB
 	c.SetFakeSdkError("DeleteLoadBalancer")
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	err = c.VpcEnsureLoadBalancerDeleted("kube-clusterID-Ready", service)
+	err = c.EnsureLoadBalancerDeleted("kube-clusterID-Ready", service)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed deleting LoadBalancer")
 	c.ClearFakeSdkError("DeleteLoadBalancer")
 
-	// VpcEnsureLoadBalancerDeleted successful, existing LB was deleted
+	// EnsureLoadBalancerDeleted successful, existing LB was deleted
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	err = c.VpcEnsureLoadBalancerDeleted("kube-clusterID-Ready", service)
+	err = c.EnsureLoadBalancerDeleted("kube-clusterID-Ready", service)
 	assert.Nil(t, err)
 }
 
-func TestCloud_VpcGetLoadBalancer(t *testing.T) {
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+func TestCloud_EnsureLoadBalancerUpdated(t *testing.T) {
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake}, nil)
+	node := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.0.1", Labels: map[string]string{}}}
 
-	// VpcGetLoadBalancer failed, failed to get find the LB
+	// EnsureLoadBalancerUpdated failed, failed to get find the LB
 	c.SetFakeSdkError("FindLoadBalancer")
 	c.SetFakeSdkError("ListLoadBalancers")
 	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	status, exist, err := c.VpcGetLoadBalancer("kube-clusterID-Ready", service)
-	assert.Nil(t, status)
-	assert.False(t, exist)
+	err := c.EnsureLoadBalancerUpdated("kube-clusterID-Ready", service, []*v1.Node{node})
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed getting LoadBalancer")
 	c.ClearFakeSdkError("FindLoadBalancer")
 	c.ClearFakeSdkError("ListLoadBalancers")
 
-	// VpcGetLoadBalancer success, existing LB does not found
+	// EnsureLoadBalancerUpdated failed, existing LB does not exist
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "NotFound"}}
-	status, exist, err = c.VpcGetLoadBalancer("kube-clusterID-NotFound", service)
-	assert.Nil(t, status)
-	assert.False(t, exist)
+	err = c.EnsureLoadBalancerUpdated("kube-clusterID-NotFound", service, []*v1.Node{node})
 	assert.Nil(t, err)
 
-	// VpcGetLoadBalancer successful, LB is not ready, service does not have a hostname
+	// EnsureLoadBalancerUpdated failed, existing LB is busy
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "NotReady"}}
-	status, exist, err = c.VpcGetLoadBalancer("kube-clusterID-NotReady", service)
-	assert.NotNil(t, status)
-	assert.Equal(t, len(status.Ingress), 0)
-	assert.True(t, exist)
-	assert.Nil(t, err)
+	err = c.EnsureLoadBalancerUpdated("kube-clusterID-NotReady", service, []*v1.Node{node})
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "LoadBalancer is busy")
 
-	// VpcGetLoadBalancer successful, LB is not ready, return the host name associated with the VPC LB
-	service = &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "NotReady"},
-		Status:     v1.ServiceStatus{LoadBalancer: v1.LoadBalancerStatus{Ingress: []v1.LoadBalancerIngress{{Hostname: "service.lb.ibm.com"}}}},
-	}
-	status, exist, err = c.VpcGetLoadBalancer("kube-clusterID-NotReady", service)
-	assert.NotNil(t, status)
-	assert.Equal(t, status.Ingress[0].Hostname, "notready.lb.ibm.com")
-	assert.True(t, exist)
-	assert.Nil(t, err)
-
-	// VpcGetLoadBalancer successful, LB is ready
+	// EnsureLoadBalancerUpdated failed, failed to update LB, node list is empty
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	status, exist, err = c.VpcGetLoadBalancer("kube-clusterID-Ready", service)
-	assert.NotNil(t, status)
-	assert.Equal(t, status.Ingress[0].Hostname, "lb.ibm.com")
-	assert.True(t, exist)
+	err = c.EnsureLoadBalancerUpdated("kube-clusterID-Ready", service, []*v1.Node{})
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed updating LoadBalancer")
+
+	// EnsureLoadBalancerUpdated successful, existing LB was updated
+	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	err = c.EnsureLoadBalancerUpdated("kube-clusterID-Ready", service, []*v1.Node{node})
 	assert.Nil(t, err)
 }
 
-func TestCloudVpc_VpcMonitorLoadBalancers(t *testing.T) {
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+func TestCloudVpc_GatherLoadBalancers(t *testing.T) {
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake}, nil)
 	serviceNodePort := v1.Service{
 		ObjectMeta: metav1.ObjectMeta{Name: "nodePort", Namespace: "default", UID: "NodePort"},
 		Spec:       v1.ServiceSpec{Type: v1.ServiceTypeNodePort}}
@@ -185,24 +161,24 @@ func TestCloudVpc_VpcMonitorLoadBalancers(t *testing.T) {
 		Spec:       v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
 	serviceList := &v1.ServiceList{Items: []v1.Service{serviceNodePort, serviceNotFound, serviceNotReady}}
 
-	// MonitorLoadBalancers failed, Kube services not specified
-	lbMap, vpcMap, err := c.VpcMonitorLoadBalancers(nil)
+	// GatherLoadBalancers failed, Kube services not specified
+	lbMap, vpcMap, err := c.GatherLoadBalancers(nil)
 	assert.Nil(t, lbMap)
 	assert.Nil(t, vpcMap)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Required argument is missing")
 
-	// MonitorLoadBalancers failed, SDK List LB failed
+	// GatherLoadBalancers failed, SDK List LB failed
 	c.SetFakeSdkError("ListLoadBalancers")
-	lbMap, vpcMap, err = c.VpcMonitorLoadBalancers(serviceList)
+	lbMap, vpcMap, err = c.GatherLoadBalancers(serviceList)
 	assert.Nil(t, lbMap)
 	assert.Nil(t, vpcMap)
 	assert.NotNil(t, err)
 	assert.Equal(t, err.Error(), "ListLoadBalancers failed")
 	c.ClearFakeSdkError("ListLoadBalancers")
 
-	// MonitorLoadBalancers success
-	lbMap, vpcMap, err = c.VpcMonitorLoadBalancers(serviceList)
+	// GatherLoadBalancers success
+	lbMap, vpcMap, err = c.GatherLoadBalancers(serviceList)
 	assert.NotNil(t, lbMap)
 	assert.NotNil(t, vpcMap)
 	assert.Nil(t, err)
@@ -210,40 +186,101 @@ func TestCloudVpc_VpcMonitorLoadBalancers(t *testing.T) {
 	assert.Equal(t, len(vpcMap), 2)
 }
 
-func TestCloud_VpcUpdateLoadBalancer(t *testing.T) {
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
-	node := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.0.1", Labels: map[string]string{}}}
+func TestCloudVpc_GenerateLoadBalancerName(t *testing.T) {
+	clusterID := "12345678901234567890"
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: clusterID, ProviderType: VpcProviderTypeFake}, nil)
+	kubeService := &v1.Service{ObjectMeta: metav1.ObjectMeta{
+		Name: "echo-server", Namespace: "default", UID: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"}}
+	lbName := VpcLbNamePrefix + "-" + clusterID + "-" + string(kubeService.UID)
+	lbName = lbName[:63]
+	result := c.GenerateLoadBalancerName(kubeService)
+	assert.Equal(t, result, lbName)
+}
 
-	// VpcUpdateLoadBalancer failed, failed to get find the LB
+func TestCloudVpc_GetLoadBalancer(t *testing.T) {
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake}, nil)
+
+	// GetLoadBalancer failed, failed to get find the LB
 	c.SetFakeSdkError("FindLoadBalancer")
 	c.SetFakeSdkError("ListLoadBalancers")
 	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	err := c.VpcUpdateLoadBalancer("kube-clusterID-Ready", service, []*v1.Node{node})
+	status, exist, err := c.GetLoadBalancer("kube-clusterID-Ready", service)
+	assert.Nil(t, status)
+	assert.False(t, exist)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed getting LoadBalancer")
 	c.ClearFakeSdkError("FindLoadBalancer")
 	c.ClearFakeSdkError("ListLoadBalancers")
 
-	// VpcUpdateLoadBalancer failed, existing LB does not exist
+	// GetLoadBalancer success, existing LB does not found
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "NotFound"}}
-	err = c.VpcUpdateLoadBalancer("kube-clusterID-NotFound", service, []*v1.Node{node})
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Load balancer not found")
-
-	// VpcUpdateLoadBalancer failed, existing LB is busy
-	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "NotReady"}}
-	err = c.VpcUpdateLoadBalancer("kube-clusterID-NotReady", service, []*v1.Node{node})
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "LoadBalancer is busy")
-
-	// VpcUpdateLoadBalancer failed, failed to update LB, node list is empty
-	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	err = c.VpcUpdateLoadBalancer("kube-clusterID-Ready", service, []*v1.Node{})
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Failed updating LoadBalancer")
-
-	// VpcUpdateLoadBalancer successful, existing LB was updated
-	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	err = c.VpcUpdateLoadBalancer("kube-clusterID-Ready", service, []*v1.Node{node})
+	status, exist, err = c.GetLoadBalancer("kube-clusterID-NotFound", service)
+	assert.Nil(t, status)
+	assert.False(t, exist)
 	assert.Nil(t, err)
+
+	// GetLoadBalancer successful, LB is not ready, service does not have a hostname
+	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "NotReady"}}
+	status, exist, err = c.GetLoadBalancer("kube-clusterID-NotReady", service)
+	assert.NotNil(t, status)
+	assert.Equal(t, len(status.Ingress), 0)
+	assert.True(t, exist)
+	assert.Nil(t, err)
+
+	// GetLoadBalancer successful, LB is not ready, return the host name associated with the VPC LB
+	service = &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "NotReady"},
+		Status:     v1.ServiceStatus{LoadBalancer: v1.LoadBalancerStatus{Ingress: []v1.LoadBalancerIngress{{Hostname: "service.lb.ibm.com"}}}},
+	}
+	status, exist, err = c.GetLoadBalancer("kube-clusterID-NotReady", service)
+	assert.NotNil(t, status)
+	assert.Equal(t, status.Ingress[0].Hostname, "notready.lb.ibm.com")
+	assert.True(t, exist)
+	assert.Nil(t, err)
+
+	// GetLoadBalancer successful, LB is ready
+	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	status, exist, err = c.GetLoadBalancer("kube-clusterID-Ready", service)
+	assert.NotNil(t, status)
+	assert.Equal(t, status.Ingress[0].Hostname, "lb.ibm.com")
+	assert.True(t, exist)
+	assert.Nil(t, err)
+}
+
+func TestCloudVpc_MonitorLoadBalancers(t *testing.T) {
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake}, nil)
+	serviceNodePort := v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "nodePort", Namespace: "default", UID: "NodePort"},
+		Spec: v1.ServiceSpec{Type: v1.ServiceTypeNodePort}}
+	serviceNotFound := v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "notFound", Namespace: "default", UID: "NotFound"},
+		Spec: v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
+	serviceNotReady := v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "notReady", Namespace: "default", UID: "NotReady"},
+		Spec: v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
+	serviceReady := v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "Ready", Namespace: "default", UID: "Ready"},
+		Spec: v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
+	dataMap := map[string]string{}
+
+	// MonitorLoadBalancers failed, service list was not passed in
+	c.MonitorLoadBalancers(nil, dataMap)
+
+	// MonitorLoadBalancers success, no existing status. Verify current status is returned
+	serviceList := &v1.ServiceList{Items: []v1.Service{serviceNodePort, serviceNotFound, serviceNotReady}}
+	c.MonitorLoadBalancers(serviceList, dataMap)
+	assert.Equal(t, len(dataMap), 2)
+	assert.Equal(t, dataMap["NotFound"], vpcLbStatusOfflineNotFound)
+	assert.Equal(t, dataMap["NotReady"], vpcLbStatusOfflineCreatePending)
+
+	// MonitorLoadBalancers success, data updated based on current state of LB
+	serviceList = &v1.ServiceList{Items: []v1.Service{serviceReady}}
+	dataMap = map[string]string{"Ready": vpcLbStatusOfflineCreatePending}
+	c.MonitorLoadBalancers(serviceList, dataMap)
+	assert.Equal(t, len(dataMap), 1)
+	assert.Equal(t, dataMap["Ready"], vpcLbStatusOnlineActive)
+
+	// MonitorLoadBalancers success, no change is status
+	serviceList = &v1.ServiceList{Items: []v1.Service{serviceNotReady, serviceNotFound}}
+	dataMap = map[string]string{"NotReady": vpcLbStatusOfflineCreatePending, "NotFound": vpcLbStatusOfflineNotFound}
+	c.MonitorLoadBalancers(serviceList, dataMap)
+	assert.Equal(t, len(dataMap), 2)
+	assert.Equal(t, dataMap["NotReady"], vpcLbStatusOfflineCreatePending)
+	assert.Equal(t, dataMap["NotFound"], vpcLbStatusOfflineNotFound)
 }

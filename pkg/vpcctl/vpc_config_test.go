@@ -215,14 +215,14 @@ func TestConfigVpc_validate(t *testing.T) {
 
 func TestNewCloudVpc(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset()
-	vpc, err := NewCloudVpc(kubeClient, nil)
+	vpc, err := NewCloudVpc(kubeClient, nil, nil)
 	assert.Nil(t, vpc)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Missing cloud configuration")
 
 	// Verify empty ConfigVpc will generate an error
 	config := &ConfigVpc{}
-	vpc, err = NewCloudVpc(kubeClient, config)
+	vpc, err = NewCloudVpc(kubeClient, config, nil)
 	assert.Nil(t, vpc)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Missing required cloud configuration setting")
@@ -232,7 +232,7 @@ func TestNewCloudVpc(t *testing.T) {
 		ClusterID:    "clusterID",
 		ProviderType: VpcProviderTypeFake,
 	}
-	vpc, err = NewCloudVpc(kubeClient, config)
+	vpc, err = NewCloudVpc(kubeClient, config, nil)
 	assert.NotNil(t, vpc)
 	assert.Nil(t, err)
 }
@@ -448,7 +448,7 @@ func TestCloudVpc_GetServiceMemberQuota(t *testing.T) {
 }
 
 func TestCloudVpc_getServicePoolNames(t *testing.T) {
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake}, nil)
 	service := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default",
 			Annotations: map[string]string{}},
@@ -476,12 +476,6 @@ func TestCloudVpc_IsServicePublic(t *testing.T) {
 
 	service.ObjectMeta.Annotations = map[string]string{serviceAnnotationIPType: servicePrivateLB}
 	result = mockCloud.isServicePublic(service)
-	assert.Equal(t, result, false)
-}
-
-func TestCloudVpc_IsVpcConfigStoredInSecret(t *testing.T) {
-	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "my-secret", Namespace: "default"}}
-	result := mockCloud.IsVpcConfigStoredInSecret(secret)
 	assert.Equal(t, result, false)
 }
 

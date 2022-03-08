@@ -94,32 +94,30 @@ func TestCloud_NewConfigVpc(t *testing.T) {
 }
 
 func TestCloud_VpcEnsureLoadBalancer(t *testing.T) {
-	c, _ := vpcctl.NewCloudVpc(fake.NewSimpleClientset(), &vpcctl.ConfigVpc{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeFake})
 	cloud := Cloud{
-		KubeClient: fake.NewSimpleClientset(),
 		Config:     &CloudConfig{Prov: Provider{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeGen2}},
+		KubeClient: fake.NewSimpleClientset(),
 		Recorder:   NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
 	}
 	node := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.0.1", Labels: map[string]string{}}}
 
-	// VpcEnsureLoadBalancer failed, failed to initialize VPC env
-	vpcctl.ResetCloudVpc()
-	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	status, err := cloud.VpcEnsureLoadBalancer(context.Background(), clusterName, service, []*v1.Node{node})
-	assert.Nil(t, status)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Failed initializing VPC")
-	vpcctl.SetCloudVpc(c)
-
-	// VpcEnsureLoadBalancer failed, failed to get create LB, no available nodes
-	cloud.Config.Prov.ProviderType = vpcctl.VpcProviderTypeFake
-	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "NotFound"}}
-	status, err = cloud.VpcEnsureLoadBalancer(context.Background(), clusterName, service, []*v1.Node{})
+	// VpcEnsureLoadBalancer failed, no available nodes
+	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "NotFound"}}
+	status, err := cloud.VpcEnsureLoadBalancer(context.Background(), clusterName, service, []*v1.Node{})
 	assert.Nil(t, status)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "There are no available nodes for LoadBalancer")
 
-	// VpcEnsureLoadBalancer successful, existing LB was updated
+	// VpcEnsureLoadBalancer failed, failed to initialize VPC env
+	vpcctl.ResetCloudVpc()
+	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	status, err = cloud.VpcEnsureLoadBalancer(context.Background(), clusterName, service, []*v1.Node{node})
+	assert.Nil(t, status)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed initializing VPC")
+
+	// VpcEnsureLoadBalancer successful
+	cloud.Config.Prov.ProviderType = vpcctl.VpcProviderTypeFake
 	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
 	status, err = cloud.VpcEnsureLoadBalancer(context.Background(), clusterName, service, []*v1.Node{node})
 	assert.NotNil(t, status)
@@ -128,57 +126,61 @@ func TestCloud_VpcEnsureLoadBalancer(t *testing.T) {
 }
 
 func TestCloud_VpcEnsureLoadBalancerDeleted(t *testing.T) {
-	c, _ := vpcctl.NewCloudVpc(fake.NewSimpleClientset(), &vpcctl.ConfigVpc{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeFake})
 	cloud := Cloud{
+		Config:     &CloudConfig{Prov: Provider{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeGen2}},
 		KubeClient: fake.NewSimpleClientset(),
-		Config:     &CloudConfig{Prov: Provider{ClusterID: "clusterID"}},
 		Recorder:   NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
 	}
+	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
 
 	// VpcEnsureLoadBalancerDeleted failed, failed to initialize VPC env
 	vpcctl.ResetCloudVpc()
-	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
 	err := cloud.VpcEnsureLoadBalancerDeleted(context.Background(), clusterName, service)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed initializing VPC")
-	vpcctl.SetCloudVpc(c)
+
+	// VpcEnsureLoadBalancerDeleted successful, existing LB was deleted
+	cloud.Config.Prov.ProviderType = vpcctl.VpcProviderTypeFake
+	err = cloud.VpcEnsureLoadBalancerDeleted(context.Background(), clusterName, service)
+	assert.Nil(t, err)
 
 	// VpcEnsureLoadBalancerDeleted failed, failed to delete the LB
+	c := cloud.GetCloudVpc()
 	c.SetFakeSdkError("DeleteLoadBalancer")
-	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
 	err = cloud.VpcEnsureLoadBalancerDeleted(context.Background(), clusterName, service)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed deleting LoadBalancer")
 	c.ClearFakeSdkError("DeleteLoadBalancer")
-
-	// VpcEnsureLoadBalancerDeleted successful, existing LB was deleted
-	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	err = cloud.VpcEnsureLoadBalancerDeleted(context.Background(), clusterName, service)
-	assert.Nil(t, err)
 }
 
 func TestCloud_VpcGetLoadBalancer(t *testing.T) {
-	c, _ := vpcctl.NewCloudVpc(fake.NewSimpleClientset(), &vpcctl.ConfigVpc{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeFake})
 	cloud := Cloud{
-		Config:   &CloudConfig{Prov: Provider{ClusterID: "clusterID"}},
-		Recorder: NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
+		Config:     &CloudConfig{Prov: Provider{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeGen2}},
+		KubeClient: fake.NewSimpleClientset(),
+		Recorder:   NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
 	}
+	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
 
 	// VpcGetLoadBalancer failed, failed to initialize VPC env
-	cloud.KubeClient = fake.NewSimpleClientset()
 	vpcctl.ResetCloudVpc()
-	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
 	status, exist, err := cloud.VpcGetLoadBalancer(context.Background(), clusterName, service)
 	assert.Nil(t, status)
 	assert.False(t, exist)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed initializing VPC")
-	vpcctl.SetCloudVpc(c)
+
+	// VpcGetLoadBalancer successful, LB is ready
+	cloud.Config.Prov.ProviderType = vpcctl.VpcProviderTypeFake
+	status, exist, err = cloud.VpcGetLoadBalancer(context.Background(), clusterName, service)
+	assert.NotNil(t, status)
+	assert.Equal(t, status.Ingress[0].Hostname, "lb.ibm.com")
+	assert.True(t, exist)
+	assert.Nil(t, err)
 
 	// VpcGetLoadBalancer failed, failed to get find the LB
+	c := cloud.GetCloudVpc()
 	c.SetFakeSdkError("FindLoadBalancer")
 	c.SetFakeSdkError("ListLoadBalancers")
-	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
 	status, exist, err = cloud.VpcGetLoadBalancer(context.Background(), clusterName, service)
 	assert.Nil(t, status)
 	assert.False(t, exist)
@@ -186,14 +188,6 @@ func TestCloud_VpcGetLoadBalancer(t *testing.T) {
 	assert.Contains(t, err.Error(), "Failed getting LoadBalancer")
 	c.ClearFakeSdkError("FindLoadBalancer")
 	c.ClearFakeSdkError("ListLoadBalancers")
-
-	// VpcGetLoadBalancer successful, LB is ready
-	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	status, exist, err = cloud.VpcGetLoadBalancer(context.Background(), clusterName, service)
-	assert.NotNil(t, status)
-	assert.Equal(t, status.Ingress[0].Hostname, "lb.ibm.com")
-	assert.True(t, exist)
-	assert.Nil(t, err)
 }
 
 func TestCloud_VpcGetLoadBalancerName(t *testing.T) {
@@ -208,27 +202,15 @@ func TestCloud_VpcGetLoadBalancerName(t *testing.T) {
 }
 
 func TestCloud_VpcMonitorLoadBalancers(t *testing.T) {
-	c, _ := vpcctl.NewCloudVpc(fake.NewSimpleClientset(), &vpcctl.ConfigVpc{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeFake})
 	cloud := Cloud{
-		Config:   &CloudConfig{Prov: Provider{ClusterID: "clusterID"}},
-		Recorder: NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
+		Config:     &CloudConfig{Prov: Provider{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeGen2}},
+		KubeClient: fake.NewSimpleClientset(),
+		Recorder:   NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
 	}
 	serviceNodePort := v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "nodePort", Namespace: "default", UID: "NodePort"},
 		Spec: v1.ServiceSpec{Type: v1.ServiceTypeNodePort}}
-	serviceNotFound := v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "notFound", Namespace: "default", UID: "NotFound"},
-		Spec: v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
-	serviceNotReady := v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "notReady", Namespace: "default", UID: "NotReady"},
-		Spec: v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
-	serviceReady := v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "Ready", Namespace: "default", UID: "Ready"},
-		Spec: v1.ServiceSpec{Type: v1.ServiceTypeLoadBalancer}}
 	serviceList := &v1.ServiceList{Items: []v1.Service{serviceNodePort}}
 	dataMap := map[string]string{}
-
-	// VpcUpdateLoadBalancer failed, failed to initialize VPC env
-	cloud.KubeClient = fake.NewSimpleClientset()
-	vpcctl.ResetCloudVpc()
-	cloud.VpcMonitorLoadBalancers(serviceList, dataMap)
-	vpcctl.SetCloudVpc(c)
 
 	// VpcUpdateLoadBalancer failed, service list was not passed in
 	cloud.VpcMonitorLoadBalancers(nil, dataMap)
@@ -236,54 +218,37 @@ func TestCloud_VpcMonitorLoadBalancers(t *testing.T) {
 	// VpcUpdateLoadBalancer failed, service list was not passed in
 	cloud.VpcMonitorLoadBalancers(&v1.ServiceList{Items: []v1.Service{}}, dataMap)
 
-	// VpcUpdateLoadBalancer success, no existing data
-	serviceList = &v1.ServiceList{Items: []v1.Service{serviceNodePort, serviceNotFound, serviceNotReady}}
+	// VpcUpdateLoadBalancer failed, failed to initialize VPC env
+	vpcctl.ResetCloudVpc()
 	cloud.VpcMonitorLoadBalancers(serviceList, dataMap)
-	assert.Equal(t, len(dataMap), 2)
-	assert.Equal(t, dataMap["NotFound"], vpcLbStatusOfflineNotFound)
-	assert.Equal(t, dataMap["NotReady"], vpcLbStatusOfflineCreatePending)
 
-	// VpcUpdateLoadBalancer success, data updated based on current state
-	serviceList = &v1.ServiceList{Items: []v1.Service{serviceReady}}
-	dataMap = map[string]string{"Ready": vpcLbStatusOfflineCreatePending}
+	// VpcUpdateLoadBalancer failed, initialize VPC successfully
+	cloud.Config.Prov.ProviderType = vpcctl.VpcProviderTypeFake
 	cloud.VpcMonitorLoadBalancers(serviceList, dataMap)
-	assert.Equal(t, len(dataMap), 1)
-	assert.Equal(t, dataMap["Ready"], vpcLbStatusOnlineActive)
-
-	// VpcUpdateLoadBalancer success, no change is status
-	serviceList = &v1.ServiceList{Items: []v1.Service{serviceNotReady, serviceNotFound}}
-	dataMap = map[string]string{"NotReady": vpcLbStatusOfflineCreatePending, "NotFound": vpcLbStatusOfflineNotFound}
-	cloud.VpcMonitorLoadBalancers(serviceList, dataMap)
-	assert.Equal(t, len(dataMap), 2)
-	assert.Equal(t, dataMap["NotReady"], vpcLbStatusOfflineCreatePending)
-	assert.Equal(t, dataMap["NotFound"], vpcLbStatusOfflineNotFound)
 }
 
 func TestCloud_VpcUpdateLoadBalancer(t *testing.T) {
-	c, _ := vpcctl.NewCloudVpc(fake.NewSimpleClientset(), &vpcctl.ConfigVpc{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeFake})
 	cloud := Cloud{
-		Config:   &CloudConfig{Prov: Provider{ClusterID: "clusterID"}},
-		Recorder: NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
+		Config:     &CloudConfig{Prov: Provider{ClusterID: "clusterID", ProviderType: vpcctl.VpcProviderTypeGen2}},
+		KubeClient: fake.NewSimpleClientset(),
+		Recorder:   NewCloudEventRecorderV1("ibm", fake.NewSimpleClientset().CoreV1().Events("")),
 	}
 	node := &v1.Node{ObjectMeta: metav1.ObjectMeta{Name: "192.168.0.1", Labels: map[string]string{}}}
-
-	// VpcUpdateLoadBalancer failed, failed to initialize VPC env
-	cloud.KubeClient = fake.NewSimpleClientset()
-	vpcctl.ResetCloudVpc()
 	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	err := cloud.VpcUpdateLoadBalancer(context.Background(), clusterName, service, []*v1.Node{node})
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Failed initializing VPC")
-	vpcctl.SetCloudVpc(c)
 
-	// VpcUpdateLoadBalancer failed, failed to update LB, node list is empty
-	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
-	err = cloud.VpcUpdateLoadBalancer(context.Background(), clusterName, service, []*v1.Node{})
+	// VpcUpdateLoadBalancer failed, node list is empty
+	err := cloud.VpcUpdateLoadBalancer(context.Background(), clusterName, service, []*v1.Node{})
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "There are no available nodes for LoadBalancer")
 
+	// VpcUpdateLoadBalancer failed, failed to initialize VPC env
+	vpcctl.ResetCloudVpc()
+	err = cloud.VpcUpdateLoadBalancer(context.Background(), clusterName, service, []*v1.Node{node})
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed initializing VPC")
+
 	// VpcUpdateLoadBalancer successful, existing LB was updated
-	service = &v1.Service{ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default", UID: "Ready"}}
+	cloud.Config.Prov.ProviderType = vpcctl.VpcProviderTypeFake
 	err = cloud.VpcUpdateLoadBalancer(context.Background(), clusterName, service, []*v1.Node{node})
 	assert.Nil(t, err)
 }
