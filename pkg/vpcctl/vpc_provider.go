@@ -117,8 +117,8 @@ func (c *CloudVpc) EnsureLoadBalancer(lbName string, service *v1.Service, nodes 
 		// - don't return SUCCESS for NLB, because we can't do the DNS lookup of static IP if the LB is still pending
 		if lb.IsReady() || !lb.IsNLB() {
 			klog.Infof(lb.GetSummary())
-			klog.Infof("Load balancer %v created.  Hostname: %v", lbName, lb.Hostname)
-			return c.GetLoadBalancerStatus(service, lb.Hostname), nil
+			klog.Infof("Load balancer %v created.", lbName)
+			return c.GetLoadBalancerStatus(service, lb), nil
 		}
 	}
 
@@ -144,8 +144,8 @@ func (c *CloudVpc) EnsureLoadBalancer(lbName string, service *v1.Service, nodes 
 	}
 
 	// Return success
-	klog.Infof("Load balancer %v created.  Hostname: %v", lbName, lb.Hostname)
-	return c.GetLoadBalancerStatus(service, lb.Hostname), nil
+	klog.Infof("Load balancer %v created.", lbName)
+	return c.GetLoadBalancerStatus(service, lb), nil
 }
 
 // EnsureLoadBalancerDeleted - called by cloud provider to delete the load balancer
@@ -334,7 +334,7 @@ func (c *CloudVpc) GetLoadBalancer(lbName string, service *v1.Service) (*v1.Load
 		klog.Warningf("Load balancer %s is busy: %v", lbName, lb.GetStatus())
 		var lbStatus *v1.LoadBalancerStatus
 		if service.Status.LoadBalancer.Ingress != nil {
-			lbStatus = c.GetLoadBalancerStatus(service, lb.Hostname)
+			lbStatus = c.GetLoadBalancerStatus(service, lb)
 		} else {
 			lbStatus = &v1.LoadBalancerStatus{}
 		}
@@ -342,8 +342,8 @@ func (c *CloudVpc) GetLoadBalancer(lbName string, service *v1.Service) (*v1.Load
 	}
 
 	// Return success
-	klog.Infof("Load balancer %v found.  Hostname: %v", lbName, lb.Hostname)
-	return c.GetLoadBalancerStatus(service, lb.Hostname), true, nil
+	klog.Infof("Load balancer %v found.", lbName)
+	return c.GetLoadBalancerStatus(service, lb), true, nil
 }
 
 // MonitorLoadBalancers - accepts a list of services (of all types), verifies that each Kubernetes load balancer service

@@ -163,7 +163,7 @@ func TestCloudVpc_GetLoadBalancerStatus(t *testing.T) {
 	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{
 		Name: "echo-server", Namespace: "default"}}
 	// Standard VPC LB
-	status := c.GetLoadBalancerStatus(service, "hostname")
+	status := c.GetLoadBalancerStatus(service, &VpcLoadBalancer{Hostname: "hostname"})
 	assert.NotNil(t, status)
 	assert.Equal(t, len(status.Ingress), 1)
 	assert.Equal(t, status.Ingress[0].Hostname, "hostname")

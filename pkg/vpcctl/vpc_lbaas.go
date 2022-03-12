@@ -481,9 +481,9 @@ func (c *CloudVpc) FindLoadBalancer(nameID string, service *v1.Service) (*VpcLoa
 }
 
 // GetLoadBalancerStatus returns the load balancer status for a given VPC host name
-func (c *CloudVpc) GetLoadBalancerStatus(service *v1.Service, hostname string) *v1.LoadBalancerStatus {
+func (c *CloudVpc) GetLoadBalancerStatus(service *v1.Service, lb *VpcLoadBalancer) *v1.LoadBalancerStatus {
 	lbStatus := &v1.LoadBalancerStatus{}
-	lbStatus.Ingress = []v1.LoadBalancerIngress{{Hostname: hostname}}
+	lbStatus.Ingress = []v1.LoadBalancerIngress{{Hostname: lb.Hostname}}
 	return lbStatus
 }
 
