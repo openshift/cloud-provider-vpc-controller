@@ -22,7 +22,6 @@ package vpcctl
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -30,8 +29,6 @@ import (
 )
 
 const (
-	defaultPoolMemberQuota = 50
-
 	// IAM Token Exchange URLs
 	iamPrivateTokenExchangeURL         = "https://private.iam.cloud.ibm.com"      // #nosec G101 IBM Cloud iam prod private URL
 	iamPublicTokenExchangeURL          = "https://iam.cloud.ibm.com"              // #nosec G101 IBM Cloud iam prod public URL
@@ -45,7 +42,6 @@ const (
 
 	serviceAnnotationEnableFeatures = "service.kubernetes.io/ibm-load-balancer-cloud-provider-enable-features"
 	serviceAnnotationIPType         = "service.kubernetes.io/ibm-load-balancer-cloud-provider-ip-type"
-	serviceAnnotationMemberQuota    = "service.kubernetes.io/ibm-load-balancer-cloud-provider-vpc-member-quota"
 	serviceAnnotationNodeSelector   = "service.kubernetes.io/ibm-load-balancer-cloud-provider-vpc-node-selector"
 	serviceAnnotationSubnets        = "service.kubernetes.io/ibm-load-balancer-cloud-provider-vpc-subnets"
 	serviceAnnotationZone           = "service.kubernetes.io/ibm-load-balancer-cloud-provider-zone"
@@ -187,57 +183,6 @@ func (c *CloudVpc) filterNodesByEdgeLabel(nodes []*v1.Node) []*v1.Node {
 	return edgeNodes
 }
 
-// filterNodesByServiceMemberQuota - limit the nodes we select based on the current quota from service annotation
-func (c *CloudVpc) filterNodesByServiceMemberQuota(desiredNodes, existingNodes []string, service *v1.Service) ([]string, error) {
-	// If externalTrafficPolicy:Local is enabled on the service, then simply return the desired list.  No filtering will be done
-	if service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal {
-		return desiredNodes, nil
-	}
-
-	// Determine the quota we should use. If annotation is not set, use default. If the annotation is not properly formatted, return error
-	quota, err := c.getServiceMemberQuota(service)
-	if err != nil {
-		return nil, err
-	}
-	// If the quota is disabled -OR- if the desired node count is <= to the quota, return the desired nodes
-	if quota == 0 || len(desiredNodes) <= quota {
-		return desiredNodes, nil
-	}
-
-	// Now we need to merge the desired and existing node lists into a combined list that is less than the quota
-	finalNodes := []string{}
-	remainingNodes := []string{}
-
-	// On the CreateLB path, we won't have any existing nodes for the LB so the following logic will be skipped
-	// On the UpdateLB path, we want to give preference to the existing nodes on the LB instead of new nodes that were just added to the cluster
-	if len(existingNodes) > 0 {
-		existingNodeList := " " + strings.Join(existingNodes, " ") + " "
-		for _, desiredNode := range desiredNodes {
-			if strings.Contains(existingNodeList, " "+desiredNode+" ") {
-				finalNodes = append(finalNodes, desiredNode)
-				if len(finalNodes) == quota {
-					return finalNodes, nil
-				}
-			} else {
-				remainingNodes = append(remainingNodes, desiredNode)
-			}
-		}
-		// Update the desired nodes list to contain only those nodes that have NOT already been moved into final node list
-		desiredNodes = remainingNodes
-	}
-
-	// Copy over the desired nodes until the quota is reached
-	for _, desiredNode := range desiredNodes {
-		finalNodes = append(finalNodes, desiredNode)
-		if len(finalNodes) == quota {
-			break
-		}
-	}
-
-	// Return list of nodes
-	return finalNodes, nil
-}
-
 // filterNodesByServiceZone - remove all nodes that don't satisfy service zone annotation
 func (c *CloudVpc) filterNodesByServiceZone(nodes []*v1.Node, service *v1.Service) []*v1.Node {
 	zone := c.getServiceZone(service)
@@ -310,7 +255,7 @@ func (c *CloudVpc) getNodeInternalIP(node *v1.Node) string {
 	return nodeInternalAddress
 }
 
-// getPoolMemberTargets - get the targets (IP address/Instance ID) for all of the pool members
+// getPoolMemberTargets - get the targets (IP address) for all of the pool members
 func (c *CloudVpc) getPoolMemberTargets(members []*VpcLoadBalancerPoolMember) []string {
 	memberTargets := []string{}
 	for _, member := range members {
@@ -350,26 +295,6 @@ func (c *CloudVpc) getServiceNodeSelectorFilter(service *v1.Service) (string, st
 		}
 	}
 	return "", ""
-}
-
-// getServiceMemberQuota - retrieve the service annotation used to filter the backend worker nodes
-func (c *CloudVpc) getServiceMemberQuota(service *v1.Service) (int, error) {
-	quota := strings.ToLower(service.ObjectMeta.Annotations[serviceAnnotationMemberQuota])
-	if quota == "" {
-		return defaultPoolMemberQuota, nil
-	}
-	// If quota checking is disabled, return 0
-	if quota == "disable" || quota == "max" {
-		return 0, nil
-	}
-	// Convert quota string to an int
-	val, err := strconv.Atoi(quota)
-	if err != nil {
-		return -1, fmt.Errorf("The annotation %s on service %s/%s is not set to a valid value [%s]",
-			serviceAnnotationMemberQuota, service.ObjectMeta.Namespace, service.ObjectMeta.Name, quota)
-	}
-	// Return result
-	return val, nil
 }
 
 // getServicePoolNames - get list of pool names for the service ports

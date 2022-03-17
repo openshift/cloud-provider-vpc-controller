@@ -81,15 +81,6 @@ func TestCloudVpc_CreateLoadBalancer(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "no available nodes for this service")
 
-	// Create load balancer failed, invalid member quota service annotation
-	service.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "invalid"}
-	service.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeCluster
-	lb, err = c.CreateLoadBalancer("load balancer", service, []*v1.Node{node})
-	assert.Nil(t, lb)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "is not set to a valid value")
-	service.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeLocal
-
 	// Create load balancer failed, no cluster subnets in the service annotation zone
 	service.ObjectMeta.Annotations = map[string]string{serviceAnnotationZone: "zoneA"}
 	lb, err = c.CreateLoadBalancer("load balancer", service, []*v1.Node{node})
@@ -247,14 +238,6 @@ func TestCloudVpc_UpdateLoadBalancer(t *testing.T) {
 	assert.Nil(t, lb)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "no available nodes")
-	service.ObjectMeta.Annotations = map[string]string{}
-
-	// Update load balancer failed, invalid value for the member quota service annotation
-	service.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "invalid"}
-	lb, err = c.UpdateLoadBalancer(publicLB, service, []*v1.Node{node})
-	assert.Nil(t, lb)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "is not set to a valid value")
 	service.ObjectMeta.Annotations = map[string]string{}
 
 	// Update load balancer failed, failed to get list of listeners
