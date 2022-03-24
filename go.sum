@@ -46,10 +46,10 @@ github.com/Azure/go-autorest/tracing v0.6.0/go.mod h1:+vhtPC754Xsa23ID7GlGsrdKBp
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/IBM/go-sdk-core/v5 v5.9.1/go.mod h1:axE2JrRq79gIJTjKPBwV6gWHswvVptBjbcvvCPIxARM=
-github.com/IBM/go-sdk-core/v5 v5.9.3 h1:s/oxlSLOJbmLUh1Kg7+A1IPE2kck+3bytGdpozp58lg=
-github.com/IBM/go-sdk-core/v5 v5.9.3/go.mod h1:YlOwV9LeuclmT/qi/LAK2AsobbAP42veV0j68/rlZsE=
-github.com/IBM/platform-services-go-sdk v0.22.10 h1:jWim5cH/9j7DBRk/BGCEhLtMg67Gpy5/eP4ygh4rxHQ=
-github.com/IBM/platform-services-go-sdk v0.22.10/go.mod h1:oA2sXxvxurkPGH9zsGfPeuUv9UwLKrFBK8bodz8SL7U=
+github.com/IBM/go-sdk-core/v5 v5.9.5 h1:+uMyHpOyBlFFd/I0PB+7JqqXOPY2DzRR0tbBjTc4d/g=
+github.com/IBM/go-sdk-core/v5 v5.9.5/go.mod h1:YlOwV9LeuclmT/qi/LAK2AsobbAP42veV0j68/rlZsE=
+github.com/IBM/platform-services-go-sdk v0.22.11 h1:dNKBCPQhonFcQrroa88fdCS5BV1yaqoK5XL5WvxaLyo=
+github.com/IBM/platform-services-go-sdk v0.22.11/go.mod h1:NVY4CWOhOE9L9+V0yfeVzS3IB6lSd5s5KeJh/sUdsws=
 github.com/IBM/vpc-go-sdk v0.17.0 h1:H9qsEx1UJoAR79s1R7n3bGPdOPW6+wLNEUyCjnesaxs=
 github.com/IBM/vpc-go-sdk v0.17.0/go.mod h1:+fTuJIR/SWXru/B5XEANwV4GCLV5fRppFEzlYGwGm7k=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
