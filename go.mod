@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/IBM/go-sdk-core/v5 v5.9.5
 	github.com/IBM/platform-services-go-sdk v0.23.0
-	github.com/IBM/vpc-go-sdk v0.18.0
+	github.com/IBM/vpc-go-sdk v0.19.0
 	github.com/go-openapi/strfmt v0.21.2
 	github.com/stretchr/testify v1.7.1
 	gopkg.in/gcfg.v1 v1.2.3
