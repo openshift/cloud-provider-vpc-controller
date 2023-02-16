@@ -1,6 +1,6 @@
 /*******************************************************************************
 * IBM Cloud Kubernetes Service, 5737-D43
-* (C) Copyright IBM Corp. 2021 All Rights Reserved.
+* (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
 *
 * SPDX-License-Identifier: Apache2.0
 *
@@ -352,13 +352,8 @@ func (c *CloudVpc) CreateLoadBalancer(lbName string, service *v1.Service, nodes 
 		return nil, fmt.Errorf("There are no available nodes for this service")
 	}
 
-	// Determine the IP address or the VSI instance ID for each of the nodes
-	desiredNodes := c.getNodeIDs(nodes)
-	existingNodes := []string{}
-	nodeList, err := c.filterNodesByServiceMemberQuota(desiredNodes, existingNodes, service)
-	if err != nil {
-		return nil, err
-	}
+	// Determine the IP address for each of the nodes
+	nodeList := c.getNodeIDs(nodes)
 	klog.Infof("Nodes: %v", nodeList)
 
 	// Determine what ports are associated with the service
@@ -481,9 +476,9 @@ func (c *CloudVpc) FindLoadBalancer(nameID string, service *v1.Service) (*VpcLoa
 }
 
 // GetLoadBalancerStatus returns the load balancer status for a given VPC host name
-func (c *CloudVpc) GetLoadBalancerStatus(service *v1.Service, hostname string) *v1.LoadBalancerStatus {
+func (c *CloudVpc) GetLoadBalancerStatus(service *v1.Service, lb *VpcLoadBalancer) *v1.LoadBalancerStatus {
 	lbStatus := &v1.LoadBalancerStatus{}
-	lbStatus.Ingress = []v1.LoadBalancerIngress{{Hostname: hostname}}
+	lbStatus.Ingress = []v1.LoadBalancerIngress{{Hostname: lb.Hostname}}
 	return lbStatus
 }
 
@@ -564,16 +559,8 @@ func (c *CloudVpc) UpdateLoadBalancer(lb *VpcLoadBalancer, service *v1.Service, 
 		return nil, err
 	}
 
-	// Verify that we did not exceed quota for number of load balancer pool members
-	desiredNodes := c.getNodeIDs(nodes)
-	existingNodes := []string{}
-	if len(pools) > 0 {
-		existingNodes = c.getPoolMemberTargets(pools[0].Members)
-	}
-	nodeList, err := c.filterNodesByServiceMemberQuota(desiredNodes, existingNodes, service)
-	if err != nil {
-		return nil, err
-	}
+	// Determine the node list
+	nodeList := c.getNodeIDs(nodes)
 
 	// The following array is going to be used to keep track of ALL of the updates that need to be done
 	// There will be 1 line of text for each update that needs to be done.
@@ -658,10 +645,6 @@ func (c *CloudVpc) UpdateLoadBalancer(lb *VpcLoadBalancer, service *v1.Service, 
 	// Set sleep and max wait times.  Increase times if NLB
 	maxWaitTime := 2 * 60
 	minSleepTime := 8
-	if lb.IsNLB() {
-		maxWaitTime = 3 * 60
-		minSleepTime = 14
-	}
 
 	// Process all of the updates that are needed
 	for i, update := range updatesRequired {
