@@ -1,6 +1,6 @@
 /*******************************************************************************
 * IBM Cloud Kubernetes Service, 5737-D43
-* (C) Copyright IBM Corp. 2021 All Rights Reserved.
+* (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
 *
 * SPDX-License-Identifier: Apache2.0
 *
@@ -222,8 +222,8 @@ func MonitorLoadBalancers() error {
 		return err
 	}
 
-	// Call the MonitorLoadBalancers function to get status of all VPC LBs
-	lbMap, vpcMap, err := c.VpcMonitorLoadBalancers(services)
+	// Call the GatherLoadBalancers function to get status of all VPC LBs
+	lbMap, vpcMap, err := c.GatherLoadBalancers(services)
 	if err != nil {
 		klog.Errorf("MonitorLoadBalancers failed: %v\n", err)
 		return err

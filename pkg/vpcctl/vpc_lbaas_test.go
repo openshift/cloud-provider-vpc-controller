@@ -1,6 +1,6 @@
 /*******************************************************************************
 * IBM Cloud Kubernetes Service, 5737-D43
-* (C) Copyright IBM Corp. 2021 All Rights Reserved.
+* (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
 *
 * SPDX-License-Identifier: Apache2.0
 *
@@ -43,7 +43,7 @@ func TestCloudVpc_CreateLoadBalancer(t *testing.T) {
 			ProviderType: VpcProviderTypeFake,
 			SubnetNames:  "subnet1",
 			VpcName:      "vpc",
-		})
+		}, nil)
 	// Create load balancer failed, name not specified
 	lb, err := c.CreateLoadBalancer("", service, []*v1.Node{})
 	assert.Nil(t, lb)
@@ -81,15 +81,6 @@ func TestCloudVpc_CreateLoadBalancer(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "no available nodes for this service")
 
-	// Create load balancer failed, invalid member quota service annotation
-	service.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "invalid"}
-	service.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeCluster
-	lb, err = c.CreateLoadBalancer("load balancer", service, []*v1.Node{node})
-	assert.Nil(t, lb)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "is not set to a valid value")
-	service.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeLocal
-
 	// Create load balancer failed, no cluster subnets in the service annotation zone
 	service.ObjectMeta.Annotations = map[string]string{serviceAnnotationZone: "zoneA"}
 	lb, err = c.CreateLoadBalancer("load balancer", service, []*v1.Node{node})
@@ -125,7 +116,7 @@ func TestCloudVpc_CreateLoadBalancer(t *testing.T) {
 }
 
 func TestCloudVpc_DeleteLoadBalancer(t *testing.T) {
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake}, nil)
 
 	// Delete load balancer failed, LB not specified
 	err := c.DeleteLoadBalancer(nil, nil)
@@ -139,7 +130,7 @@ func TestCloudVpc_DeleteLoadBalancer(t *testing.T) {
 }
 
 func TestCloudVpc_FindLoadBalancer(t *testing.T) {
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake}, nil)
 
 	// Load balancer failed, name not specified
 	lb, err := c.FindLoadBalancer("", nil)
@@ -158,12 +149,12 @@ func TestCloudVpc_FindLoadBalancer(t *testing.T) {
 }
 
 func TestCloudVpc_GetLoadBalancerStatus(t *testing.T) {
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake}, nil)
 
 	service := &v1.Service{ObjectMeta: metav1.ObjectMeta{
 		Name: "echo-server", Namespace: "default"}}
 	// Standard VPC LB
-	status := c.GetLoadBalancerStatus(service, "hostname")
+	status := c.GetLoadBalancerStatus(service, &VpcLoadBalancer{Hostname: "hostname"})
 	assert.NotNil(t, status)
 	assert.Equal(t, len(status.Ingress), 1)
 	assert.Equal(t, status.Ingress[0].Hostname, "hostname")
@@ -188,7 +179,7 @@ func TestCloudVpc_UpdateLoadBalancer(t *testing.T) {
 			Type:                  v1.ServiceTypeLoadBalancer,
 			Ports:                 []v1.ServicePort{{Protocol: v1.ProtocolTCP, Port: 80, NodePort: 30303}},
 		}}
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake}, nil)
 
 	// Update load balancer failed, name not specified
 	lb, err := c.UpdateLoadBalancer(nil, service, []*v1.Node{node})
@@ -247,14 +238,6 @@ func TestCloudVpc_UpdateLoadBalancer(t *testing.T) {
 	assert.Nil(t, lb)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "no available nodes")
-	service.ObjectMeta.Annotations = map[string]string{}
-
-	// Update load balancer failed, invalid value for the member quota service annotation
-	service.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "invalid"}
-	lb, err = c.UpdateLoadBalancer(publicLB, service, []*v1.Node{node})
-	assert.Nil(t, lb)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "is not set to a valid value")
 	service.ObjectMeta.Annotations = map[string]string{}
 
 	// Update load balancer failed, failed to get list of listeners
@@ -404,7 +387,7 @@ func TestCloudVpc_UpdateLoadBalancer(t *testing.T) {
 }
 
 func TestCloudVpc_WaitLoadBalancerReady(t *testing.T) {
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake}, nil)
 	lb := &VpcLoadBalancer{
 		ID:                 "Ready",
 		OperatingStatus:    LoadBalancerOperatingStatusOffline,
