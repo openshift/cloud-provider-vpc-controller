@@ -1,6 +1,6 @@
 /*******************************************************************************
 * IBM Cloud Kubernetes Service, 5737-D43
-* (C) Copyright IBM Corp. 2021 All Rights Reserved.
+* (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
 *
 * SPDX-License-Identifier: Apache2.0
 *
@@ -23,6 +23,7 @@ import (
 	"os"
 	"testing"
 
+	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
 	"github.com/stretchr/testify/assert"
 
 	v1 "k8s.io/api/core/v1"
@@ -76,6 +77,7 @@ func TestCreateLoadBalancer(t *testing.T) {
 	assert.Contains(t, err.Error(), "no available nodes for this service")
 
 	// Valid configuration - create worked
+	vpcctl.ResetCloudVpc()
 	mockKubeCtl = fake.NewSimpleClientset(mockService, mockNode)
 	err = CreateLoadBalancer("echo-server", "")
 	assert.Nil(t, err)
@@ -86,6 +88,7 @@ func TestCreateLoadBalancer(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Valid configuration - LB exists, update LB failed. No nodes
+	vpcctl.ResetCloudVpc()
 	mockKubeCtl = fake.NewSimpleClientset(mockService)
 	err = CreateLoadBalancer("Ready", "echo-server")
 	assert.NotNil(t, err)

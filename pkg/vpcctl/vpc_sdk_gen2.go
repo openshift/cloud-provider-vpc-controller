@@ -69,7 +69,7 @@ func convertResourceGroupNameToID(c *ConfigVpc) error {
 	// Determine if URL for the resource manager
 	url := resourcemanagerv2.DefaultServiceURL
 	if strings.Contains(c.endpointURL, "iaasdev.cloud.ibm.com") {
-		url = "https://resource-controller.test.cloud.ibm.com/v2"
+		url = "https://resource-controller.test.cloud.ibm.com"
 	}
 	// Create resource manager client
 	authenticator := &core.IamAuthenticator{ApiKey: c.APIKeySecret, URL: c.tokenExchangeURL}

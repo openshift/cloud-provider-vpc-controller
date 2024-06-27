@@ -1,6 +1,6 @@
 /*******************************************************************************
 * IBM Cloud Kubernetes Service, 5737-D43
-* (C) Copyright IBM Corp. 2021 All Rights Reserved.
+* (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
 *
 * SPDX-License-Identifier: Apache2.0
 *
@@ -28,20 +28,18 @@ import (
 	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/klog"
 	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 )
 
-const (
-	vpcLbStatusOnlineActive              = vpcctl.LoadBalancerOperatingStatusOnline + "/" + vpcctl.LoadBalancerProvisioningStatusActive
-	vpcLbStatusOfflineCreatePending      = vpcctl.LoadBalancerOperatingStatusOffline + "/" + vpcctl.LoadBalancerProvisioningStatusCreatePending
-	vpcLbStatusOfflineMaintenancePending = vpcctl.LoadBalancerOperatingStatusOffline + "/" + vpcctl.LoadBalancerProvisioningStatusMaintenancePending
-	vpcLbStatusOfflineFailed             = vpcctl.LoadBalancerOperatingStatusOffline + "/" + vpcctl.LoadBalancerProvisioningStatusFailed
-	vpcLbStatusOfflineNotFound           = vpcctl.LoadBalancerOperatingStatusOffline + "/not_found"
-)
+// GetCloudVpc - Retrieve the VPC cloud object.  Return nil if not initialized.
+func (c *Cloud) GetCloudVpc() *vpcctl.CloudVpc {
+	return vpcctl.GetCloudVpc()
+}
 
 // InitCloudVpc - Initialize the VPC cloud logic
 func (c *Cloud) InitCloudVpc(enablePrivateEndpoint bool) (*vpcctl.CloudVpc, error) {
 	// Extract the VPC cloud object. If set, return it
-	cloudVpc := c.Vpc
+	cloudVpc := c.GetCloudVpc()
 	if cloudVpc != nil {
 		return cloudVpc, nil
 	}
@@ -51,11 +49,11 @@ func (c *Cloud) InitCloudVpc(enablePrivateEndpoint bool) (*vpcctl.CloudVpc, erro
 		return nil, err
 	}
 	// Allocate a new VPC Cloud object and save it if successful
-	cloudVpc, err = vpcctl.NewCloudVpc(c.KubeClient, config)
-	if cloudVpc != nil {
-		c.Vpc = cloudVpc
+	var recoder record.EventRecorder
+	if c.Recorder != nil {
+		recoder = c.Recorder.Recorder
 	}
-	return cloudVpc, err
+	return vpcctl.NewCloudVpc(c.KubeClient, config, recoder)
 }
 
 // isProviderVpc - Is the current cloud provider running in VPC environment?
@@ -109,11 +107,7 @@ func (c *Cloud) VpcEnsureLoadBalancer(ctx context.Context, clusterName string, s
 		return nil, c.Recorder.VpcLoadBalancerServiceWarningEvent(service, CreatingCloudLoadBalancerFailed, lbName, errString)
 	}
 	// Attempt to create/update the VPC load balancer for this service
-	status, err := vpc.VpcEnsureLoadBalancer(lbName, service, nodes)
-	if err != nil {
-		return nil, c.Recorder.VpcLoadBalancerServiceWarningEvent(service, CreatingCloudLoadBalancerFailed, lbName, err.Error())
-	}
-	return status, nil
+	return vpc.EnsureLoadBalancer(lbName, service, nodes)
 }
 
 // VpcEnsureLoadBalancerDeleted - Deletes the specified load balancer if it exists,
@@ -128,25 +122,7 @@ func (c *Cloud) VpcEnsureLoadBalancerDeleted(ctx context.Context, clusterName st
 		return c.Recorder.VpcLoadBalancerServiceWarningEvent(service, DeletingCloudLoadBalancerFailed, lbName, errString)
 	}
 	// Attempt to delete the VPC load balancer
-	err = vpc.VpcEnsureLoadBalancerDeleted(lbName, service)
-	if err != nil {
-		return c.Recorder.VpcLoadBalancerServiceWarningEvent(service, DeletingCloudLoadBalancerFailed, lbName, err.Error())
-	}
-	return nil
-}
-
-// vpcGetEventMessage based on the status that was passed in
-func (c *Cloud) vpcGetEventMessage(status string) string {
-	switch status {
-	case vpcLbStatusOfflineFailed:
-		return "The VPC load balancer that routes requests to this Kubernetes LoadBalancer service is offline. For troubleshooting steps, see <https://ibm.biz/vpc-lb-ts>"
-	case vpcLbStatusOfflineMaintenancePending:
-		return "The VPC load balancer that routes requests to this Kubernetes LoadBalancer service is under maintenance."
-	case vpcLbStatusOfflineNotFound:
-		return "The VPC load balancer that routes requests to this Kubernetes LoadBalancer service was not found. To recreate the VPC load balancer, restart the Kubernetes master by running 'ibmcloud ks cluster master refresh --cluster <cluster_name_or_id>'."
-	default:
-		return fmt.Sprintf("The VPC load balancer that routes requests to this Kubernetes LoadBalancer service is currently %s.", status)
-	}
+	return vpc.EnsureLoadBalancerDeleted(lbName, service)
 }
 
 // VpcGetLoadBalancer - Returns whether the specified load balancer exists, and
@@ -161,11 +137,7 @@ func (c *Cloud) VpcGetLoadBalancer(ctx context.Context, clusterName string, serv
 		return nil, false, c.Recorder.VpcLoadBalancerServiceWarningEvent(service, GettingCloudLoadBalancerFailed, lbName, errString)
 	}
 	// Retrieve the status of the VPC load balancer
-	status, exist, err := vpc.VpcGetLoadBalancer(lbName, service)
-	if err != nil {
-		return status, exist, c.Recorder.VpcLoadBalancerServiceWarningEvent(service, GettingCloudLoadBalancerFailed, lbName, err.Error())
-	}
-	return status, exist, nil
+	return vpc.GetLoadBalancer(lbName, service)
 }
 
 // vpcGetLoadBalancerName - Returns the name of the load balancer
@@ -209,38 +181,6 @@ func (c *Cloud) vpcGetServiceDetails(service *v1.Service) string {
 		service.Status)
 }
 
-// VpcHandleSecret is called to process the add/delete/update of a Kubernetes secret
-func (c *Cloud) VpcHandleSecret(secret *v1.Secret, action string) {
-	// If the VPC environment has not been initialzed, simply return
-	vpc := c.Vpc
-	if vpc == nil {
-		return
-	}
-	// Check the secret to determine if VPC settings need to be reset
-	if vpc.IsVpcConfigStoredInSecret(secret) {
-		klog.Infof("VCP secret %s/%s had been %s. Reset the VPC config data", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name, action)
-		c.Vpc = nil
-	}
-}
-
-// VpcHandleSecretAdd is called when a secret is added
-func (c *Cloud) VpcHandleSecretAdd(obj interface{}) {
-	secret := obj.(*v1.Secret)
-	c.VpcHandleSecret(secret, "added")
-}
-
-// VpcHandleSecretDelete is called when a secret is deleted
-func (c *Cloud) VpcHandleSecretDelete(obj interface{}) {
-	secret := obj.(*v1.Secret)
-	c.VpcHandleSecret(secret, "deleted")
-}
-
-// VpcHandleSecretUpdate is called when a secret is changed
-func (c *Cloud) VpcHandleSecretUpdate(oldObj, newObj interface{}) {
-	secret := newObj.(*v1.Secret)
-	c.VpcHandleSecret(secret, "updated")
-}
-
 // VpcMonitorLoadBalancers accepts a list of services (of all types), verifies that each Kubernetes load balancer service has a
 // corresponding VPC load balancer object, and creates Kubernetes events based on the load balancer's status.
 // `status` is a map from a load balancer's unique Service ID to its status.
@@ -251,60 +191,12 @@ func (c *Cloud) VpcMonitorLoadBalancers(services *v1.ServiceList, status map[str
 		klog.Infof("No Load Balancers to monitor, returning")
 		return
 	}
-
 	vpc, err := c.InitCloudVpc(true)
 	if err != nil {
 		klog.Errorf("Failed initializing VPC: %v", err)
 		return
 	}
-	// Retrieve VPC LBs for the current cluster
-	lbMap, vpcMap, err := vpc.VpcMonitorLoadBalancers(services)
-	if err != nil {
-		klog.Errorf("Failed retrieving VPC LBs: %v", err)
-		return
-	}
-
-	// Verify that we have a VPC LB for each of the Kube LB services
-	for lbName, service := range lbMap {
-		serviceID := string(service.ObjectMeta.UID)
-		oldStatus := status[serviceID]
-		vpcLB, exists := vpcMap[lbName]
-		if exists {
-			// Store the new status so its available to the next call to VpcMonitorLoadBalancers()
-			newStatus := vpcLB.GetStatus()
-			status[serviceID] = newStatus
-
-			// If the current state of the LB is online/active
-			if newStatus == vpcLbStatusOnlineActive {
-				if oldStatus != vpcLbStatusOnlineActive {
-					// If the status of the VPC load balancer transitioned to 'online/active' --> NORMAL EVENT.
-					c.Recorder.VpcLoadBalancerServiceNormalEvent(service, CloudVPCLoadBalancerNormalEvent, lbName, c.vpcGetEventMessage(newStatus))
-				}
-				// Move on to the next LB service
-				continue
-			}
-
-			// If the status of the VPC load balancer is not 'online/active', record warning event if status has not changed since last we checked
-			klog.Infof("VPC load balance not online/active: ServiceID:%s Service:%s/%s %s",
-				string(service.ObjectMeta.UID), service.ObjectMeta.Namespace, service.ObjectMeta.Name, vpcLB.GetSummary())
-			if oldStatus == newStatus {
-				_ = c.Recorder.VpcLoadBalancerServiceWarningEvent(
-					service, VerifyingCloudLoadBalancerFailed, lbName, c.vpcGetEventMessage(newStatus)) // #nosec G104 error is always returned
-			}
-
-			// Move on to the next LB service
-			continue
-		}
-
-		// There is no VPC LB for the current Kubernetes load balancer.  Update the status to: "offline/not_found"
-		klog.Warningf("VPC load balancer not found for service %s %s/%s ", serviceID, service.ObjectMeta.Namespace, service.ObjectMeta.Name)
-		newStatus := vpcLbStatusOfflineNotFound
-		status[serviceID] = newStatus
-		if oldStatus == newStatus {
-			_ = c.Recorder.VpcLoadBalancerServiceWarningEvent(
-				service, VerifyingCloudLoadBalancerFailed, lbName, c.vpcGetEventMessage(newStatus)) // #nosec G104 error is always returned
-		}
-	}
+	vpc.MonitorLoadBalancers(services, status)
 }
 
 // VpcUpdateLoadBalancer updates hosts under the specified load balancer
@@ -323,12 +215,5 @@ func (c *Cloud) VpcUpdateLoadBalancer(ctx context.Context, clusterName string, s
 		return c.Recorder.VpcLoadBalancerServiceWarningEvent(service, UpdatingCloudLoadBalancerFailed, lbName, errString)
 	}
 	// Update the VPC load balancer
-	err = vpc.VpcUpdateLoadBalancer(lbName, service, nodes)
-	if err != nil {
-		if strings.Contains(err.Error(), "Load balancer not found") {
-			return nil
-		}
-		return c.Recorder.VpcLoadBalancerServiceWarningEvent(service, UpdatingCloudLoadBalancerFailed, lbName, err.Error())
-	}
-	return nil
+	return vpc.EnsureLoadBalancerUpdated(lbName, service, nodes)
 }
