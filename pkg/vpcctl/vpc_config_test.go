@@ -1,6 +1,6 @@
 /*******************************************************************************
 * IBM Cloud Kubernetes Service, 5737-D43
-* (C) Copyright IBM Corp. 2021 All Rights Reserved.
+* (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
 *
 * SPDX-License-Identifier: Apache2.0
 *
@@ -215,14 +215,14 @@ func TestConfigVpc_validate(t *testing.T) {
 
 func TestNewCloudVpc(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset()
-	vpc, err := NewCloudVpc(kubeClient, nil)
+	vpc, err := NewCloudVpc(kubeClient, nil, nil)
 	assert.Nil(t, vpc)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Missing cloud configuration")
 
 	// Verify empty ConfigVpc will generate an error
 	config := &ConfigVpc{}
-	vpc, err = NewCloudVpc(kubeClient, config)
+	vpc, err = NewCloudVpc(kubeClient, config, nil)
 	assert.Nil(t, vpc)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Missing required cloud configuration setting")
@@ -232,7 +232,7 @@ func TestNewCloudVpc(t *testing.T) {
 		ClusterID:    "clusterID",
 		ProviderType: VpcProviderTypeFake,
 	}
-	vpc, err = NewCloudVpc(kubeClient, config)
+	vpc, err = NewCloudVpc(kubeClient, config, nil)
 	assert.NotNil(t, vpc)
 	assert.Nil(t, err)
 }
@@ -249,62 +249,6 @@ func TestCloudVpc_FilterNodesByEdgeLabel(t *testing.T) {
 	outNodes = mockCloud.filterNodesByEdgeLabel(inNodes)
 	assert.Equal(t, len(outNodes), 1)
 	assert.Equal(t, outNodes[0].Name, mockNode2.Name)
-}
-
-func TestCloudVpc_FilterNodesByServiceMemberQuota(t *testing.T) {
-	mockService := &v1.Service{}
-	desiredNodes := []string{"192.168.1.1", "192.168.2.2", "192.168.3.3", "192.168.4.4"}
-	existingNodes := []string{"192.168.2.2", "192.168.5.5", "192.168.6.6"}
-	// Invalid annotation on the service
-	mockService.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "invalid"}
-	nodes, err := mockCloud.filterNodesByServiceMemberQuota(desiredNodes, existingNodes, mockService)
-	assert.Nil(t, nodes)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "is not set to a valid value")
-
-	// Disable quota checking annotation on the service
-	mockService.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "disable"}
-	nodes, err = mockCloud.filterNodesByServiceMemberQuota(desiredNodes, existingNodes, mockService)
-	assert.Equal(t, len(nodes), len(desiredNodes))
-	assert.Nil(t, err)
-
-	// Number of nodes is less than the service quota
-	mockService.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "10"}
-	nodes, err = mockCloud.filterNodesByServiceMemberQuota(desiredNodes, existingNodes, mockService)
-	assert.Equal(t, len(nodes), len(desiredNodes))
-	assert.Nil(t, err)
-
-	// ExternalTrafficPolicy: Local and we are over the quota. All desired nodes are returned
-	mockService.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "2"}
-	mockService.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeLocal
-	nodes, err = mockCloud.filterNodesByServiceMemberQuota(desiredNodes, existingNodes, mockService)
-	assert.Equal(t, len(nodes), len(desiredNodes))
-	assert.Nil(t, err)
-	mockService.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeCluster
-
-	// ExternalTrafficPolicy: Cluster and we are over the quota
-	mockService.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "1"}
-	nodes, err = mockCloud.filterNodesByServiceMemberQuota(desiredNodes, existingNodes, mockService)
-	assert.Equal(t, len(nodes), 1)
-	assert.Nil(t, err)
-	assert.Equal(t, nodes[0], "192.168.2.2")
-
-	// ExternalTrafficPolicy: Cluster and we are over the quota
-	mockService.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "2"}
-	nodes, err = mockCloud.filterNodesByServiceMemberQuota(desiredNodes, existingNodes, mockService)
-	assert.Equal(t, len(nodes), 2)
-	assert.Nil(t, err)
-	assert.Equal(t, nodes[0], "192.168.2.2")
-	assert.Equal(t, nodes[1], "192.168.1.1")
-
-	// ExternalTrafficPolicy: Cluster and we are over the quota
-	mockService.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "3"}
-	nodes, err = mockCloud.filterNodesByServiceMemberQuota(desiredNodes, existingNodes, mockService)
-	assert.Equal(t, len(nodes), 3)
-	assert.Nil(t, err)
-	assert.Equal(t, nodes[0], "192.168.2.2")
-	assert.Equal(t, nodes[1], "192.168.1.1")
-	assert.Equal(t, nodes[2], "192.168.3.3")
 }
 
 func TestCloudVpc_FilterNodesByServiceZone(t *testing.T) {
@@ -361,17 +305,6 @@ func TestCloudVpc_FindNodesMatchingLabelValue(t *testing.T) {
 	inNodes = []*v1.Node{mockNode2}
 	outNodes = mockCloud.findNodesMatchingLabelValue(inNodes, nodeLabelDedicated, nodeLabelValueEdge)
 	assert.Equal(t, len(outNodes), 0)
-}
-
-func TestCloudVpc_GenerateLoadBalancerName(t *testing.T) {
-	clusterID := "12345678901234567890"
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: clusterID, ProviderType: VpcProviderTypeFake})
-	kubeService := &v1.Service{ObjectMeta: metav1.ObjectMeta{
-		Name: "echo-server", Namespace: "default", UID: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"}}
-	lbName := VpcLbNamePrefix + "-" + clusterID + "-" + string(kubeService.UID)
-	lbName = lbName[:63]
-	result := c.GenerateLoadBalancerName(kubeService)
-	assert.Equal(t, result, lbName)
 }
 
 func TestCloudVpc_GetNodeIDs(t *testing.T) {
@@ -431,35 +364,8 @@ func TestCloudVpc_GetServiceNodeSelectorFilter(t *testing.T) {
 	assert.Equal(t, filterValue, "cx2.2x4")
 }
 
-func TestCloudVpc_GetServiceMemberQuota(t *testing.T) {
-	// No annotation on the service. Return the default quota value
-	mockService := &v1.Service{}
-	quota, err := mockCloud.getServiceMemberQuota(mockService)
-	assert.Equal(t, quota, defaultPoolMemberQuota)
-	assert.Nil(t, err)
-
-	// Annotation set to disale quota checks
-	mockService.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "disable"}
-	quota, err = mockCloud.getServiceMemberQuota(mockService)
-	assert.Equal(t, quota, 0)
-	assert.Nil(t, err)
-
-	// Invalid annotation on the service
-	mockService.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "invalid"}
-	quota, err = mockCloud.getServiceMemberQuota(mockService)
-	assert.Equal(t, quota, -1)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "is not set to a valid value")
-
-	// Valid quota specified in the annotation on the service
-	mockService.ObjectMeta.Annotations = map[string]string{serviceAnnotationMemberQuota: "100"}
-	quota, err = mockCloud.getServiceMemberQuota(mockService)
-	assert.Equal(t, quota, 100)
-	assert.Nil(t, err)
-}
-
 func TestCloudVpc_getServicePoolNames(t *testing.T) {
-	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake})
+	c, _ := NewCloudVpc(fake.NewSimpleClientset(), &ConfigVpc{ClusterID: "clusterID", ProviderType: VpcProviderTypeFake}, nil)
 	service := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{Name: "echo-server", Namespace: "default",
 			Annotations: map[string]string{}},
@@ -487,12 +393,6 @@ func TestCloudVpc_IsServicePublic(t *testing.T) {
 
 	service.ObjectMeta.Annotations = map[string]string{serviceAnnotationIPType: servicePrivateLB}
 	result = mockCloud.isServicePublic(service)
-	assert.Equal(t, result, false)
-}
-
-func TestCloudVpc_IsVpcConfigStoredInSecret(t *testing.T) {
-	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "my-secret", Namespace: "default"}}
-	result := mockCloud.IsVpcConfigStoredInSecret(secret)
 	assert.Equal(t, result, false)
 }
 
