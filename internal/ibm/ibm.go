@@ -1,6 +1,6 @@
 /*******************************************************************************
 * IBM Cloud Kubernetes Service, 5737-D43
-* (C) Copyright IBM Corp. 2021 All Rights Reserved.
+* (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
 *
 * SPDX-License-Identifier: Apache2.0
 *
@@ -23,8 +23,10 @@ import (
 	"fmt"
 	"os"
 
+	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/klog"
 	"cloud.ibm.com/cloud-provider-vpc-controller/pkg/vpcctl"
 	"gopkg.in/gcfg.v1"
+	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 )
 
@@ -61,7 +63,6 @@ type Cloud struct {
 	KubeClient clientset.Interface
 	Config     *CloudConfig
 	Recorder   *CloudEventRecorder
-	Vpc        *vpcctl.CloudVpc
 }
 
 // ReadCloudConfig - Read in the cloud configuration
@@ -78,18 +79,9 @@ func (c *Cloud) ReadCloudConfig(configFile string) (*CloudConfig, error) {
 }
 
 // SetInformers initializes any informers when the cloud provider starts
-// func (c *Cloud) SetInformers(informerFactory informers.SharedInformerFactory) {
-// 	klog.Infof("Initializing Informers")
-// 	endpointInformer := informerFactory.Core().V1().Endpoints().Informer()
-// 	endpointInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-// 		UpdateFunc: c.handleEndpointUpdate,
-// 	})
-// 	if c.isProviderVpc() {
-// 		secretInformer := informerFactory.Core().V1().Secrets().Informer()
-// 		secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-// 			AddFunc:    c.VpcHandleSecretAdd,
-// 			DeleteFunc: c.VpcHandleSecretDelete,
-// 			UpdateFunc: c.VpcHandleSecretUpdate,
-// 		})
-// 	}
-// }
+func (c *Cloud) SetInformers(informerFactory informers.SharedInformerFactory) {
+	klog.Infof("Initializing Informers")
+	if c.isProviderVpc() {
+		vpcctl.SetInformers(informerFactory)
+	}
+}
