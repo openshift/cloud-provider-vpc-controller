@@ -1,25 +1,14 @@
-# IBM Cloud: vpcctl
+# IBM Cloud: VPC Controller
 
-A Kubernetes load balancer provider for IBM Cloud VPC
+A Kubernetes VPC load balancer logic for the [IBM Cloud: Cloud Controller Manager](https://github.com/IBM-Cloud/cloud-provider-ibm)
 
-## Description
+---
 
-This repo contains logic to build the VPCCTL binary that is called by the IBM Cloud Controler Manager to provide VPC load balancers
+**This repo has been deprecated and should no longer be used.**
 
-## IBM Cloud: Kubernetes LoadBalancer options
+The VPC load balancer logic in this repo has been inlined into the [IBM Cloud: Cloud Controller Manager](https://github.com/IBM-Cloud/cloud-provider-ibm) repo.
+All future updates to the VPC load balancer logic will be made in that repo.
 
-Only a subset of the IBM Cloud Kubernetes service annotations are supported:
+**At some future date, this repo will be deleted.**
 
-- `service.kubernetes.io/ibm-load-balancer-cloud-provider-ip-type` = "public" | "private"
-- `service.kubernetes.io/ibm-load-balancer-cloud-provider-vpc-node-selector`
-- `service.kubernetes.io/ibm-load-balancer-cloud-provider-vpc-subnets`
-- `service.kubernetes.io/ibm-load-balancer-cloud-provider-zone`
-
-The following node label is supported:
-
-- `dedicated: edge`
-
-See [IBM Cloud documentation](https://cloud.ibm.com/docs/containers?topic=containers-vpc-lbaas) for additional information.
-
-## Contributing
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution guidelines.
+---

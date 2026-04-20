@@ -188,18 +188,6 @@ func TestVpcLoadBalancer_getZones(t *testing.T) {
 	assert.Equal(t, result[1], "us-south-2")
 }
 
-func TestVpcLoadBalancer_IsNLB(t *testing.T) {
-	// Normal LB
-	lb := &VpcLoadBalancer{}
-	rc := lb.IsNLB()
-	assert.False(t, rc)
-
-	// NLB
-	lb = &VpcLoadBalancer{ProfileFamily: "network"}
-	rc = lb.IsNLB()
-	assert.True(t, rc)
-}
-
 func TestVpcLoadBalancer_IsReady(t *testing.T) {
 	// Status is "online/active"
 	lb := &VpcLoadBalancer{

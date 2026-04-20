@@ -1,6 +1,6 @@
 /*******************************************************************************
 * IBM Cloud Kubernetes Service, 5737-D43
-* (C) Copyright IBM Corp. 2021 All Rights Reserved.
+* (C) Copyright IBM Corp. 2021, 2022 All Rights Reserved.
 *
 * SPDX-License-Identifier: Apache2.0
 *
@@ -22,16 +22,13 @@ package vpcctl
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/informers"
 )
 
 const (
-	defaultPoolMemberQuota = 50
-
 	// IAM Token Exchange URLs
 	iamPrivateTokenExchangeURL         = "https://private.iam.cloud.ibm.com"      // #nosec G101 IBM Cloud iam prod private URL
 	iamPublicTokenExchangeURL          = "https://iam.cloud.ibm.com"              // #nosec G101 IBM Cloud iam prod public URL
@@ -45,7 +42,6 @@ const (
 
 	serviceAnnotationEnableFeatures = "service.kubernetes.io/ibm-load-balancer-cloud-provider-enable-features"
 	serviceAnnotationIPType         = "service.kubernetes.io/ibm-load-balancer-cloud-provider-ip-type"
-	serviceAnnotationMemberQuota    = "service.kubernetes.io/ibm-load-balancer-cloud-provider-vpc-member-quota"
 	serviceAnnotationNodeSelector   = "service.kubernetes.io/ibm-load-balancer-cloud-provider-vpc-node-selector"
 	serviceAnnotationSubnets        = "service.kubernetes.io/ibm-load-balancer-cloud-provider-vpc-subnets"
 	serviceAnnotationZone           = "service.kubernetes.io/ibm-load-balancer-cloud-provider-zone"
@@ -81,8 +77,10 @@ var memberNodeLabelsAllowed = [...]string{
 	"topology.kubernetes.io/zone",
 }
 
-// VpcLbNamePrefix - Prefix to be used for VPC load balancer
-var VpcLbNamePrefix = "kube"
+// SetInformers - Configure watch/informers
+func SetInformers(informerFactory informers.SharedInformerFactory) {
+	// No informers/watchers needed
+}
 
 // ConfigVpc is the VPC configuration information
 type ConfigVpc struct {
@@ -101,13 +99,6 @@ type ConfigVpc struct {
 	endpointURL      string
 	resourceGroupID  string
 	tokenExchangeURL string
-}
-
-// CloudVpc is the main VPC cloud provider implementation.
-type CloudVpc struct {
-	KubeClient kubernetes.Interface
-	Config     *ConfigVpc
-	Sdk        CloudVpcSdk
 }
 
 // getIamEndpoint - retrieve the correct IAM endpoint for the current config
@@ -183,23 +174,6 @@ func (c *ConfigVpc) validate() error {
 	return nil
 }
 
-// NewCloudVpc - create new CloudVpc object based on the config data that was passed in
-func NewCloudVpc(kubeClient kubernetes.Interface, config *ConfigVpc) (*CloudVpc, error) {
-	if config == nil {
-		return nil, fmt.Errorf("Missing cloud configuration")
-	}
-	c := &CloudVpc{KubeClient: kubeClient, Config: config}
-	err := c.Config.initialize()
-	if err != nil {
-		return nil, err
-	}
-	c.Sdk, err = NewCloudVpcSdk(c.Config)
-	if err != nil {
-		return nil, err
-	}
-	return c, nil
-}
-
 // filterNodesByEdgeLabel - extract only the edge nodes if there any any -or- return all nodes
 func (c *CloudVpc) filterNodesByEdgeLabel(nodes []*v1.Node) []*v1.Node {
 	edgeNodes := c.findNodesMatchingLabelValue(nodes, nodeLabelDedicated, nodeLabelValueEdge)
@@ -207,57 +181,6 @@ func (c *CloudVpc) filterNodesByEdgeLabel(nodes []*v1.Node) []*v1.Node {
 		return nodes
 	}
 	return edgeNodes
-}
-
-// filterNodesByServiceMemberQuota - limit the nodes we select based on the current quota from service annotation
-func (c *CloudVpc) filterNodesByServiceMemberQuota(desiredNodes, existingNodes []string, service *v1.Service) ([]string, error) {
-	// If externalTrafficPolicy:Local is enabled on the service, then simply return the desired list.  No filtering will be done
-	if service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal {
-		return desiredNodes, nil
-	}
-
-	// Determine the quota we should use. If annotation is not set, use default. If the annotation is not properly formatted, return error
-	quota, err := c.getServiceMemberQuota(service)
-	if err != nil {
-		return nil, err
-	}
-	// If the quota is disabled -OR- if the desired node count is <= to the quota, return the desired nodes
-	if quota == 0 || len(desiredNodes) <= quota {
-		return desiredNodes, nil
-	}
-
-	// Now we need to merge the desired and existing node lists into a combined list that is less than the quota
-	finalNodes := []string{}
-	remainingNodes := []string{}
-
-	// On the CreateLB path, we won't have any existing nodes for the LB so the following logic will be skipped
-	// On the UpdateLB path, we want to give preference to the existing nodes on the LB instead of new nodes that were just added to the cluster
-	if len(existingNodes) > 0 {
-		existingNodeList := " " + strings.Join(existingNodes, " ") + " "
-		for _, desiredNode := range desiredNodes {
-			if strings.Contains(existingNodeList, " "+desiredNode+" ") {
-				finalNodes = append(finalNodes, desiredNode)
-				if len(finalNodes) == quota {
-					return finalNodes, nil
-				}
-			} else {
-				remainingNodes = append(remainingNodes, desiredNode)
-			}
-		}
-		// Update the desired nodes list to contain only those nodes that have NOT already been moved into final node list
-		desiredNodes = remainingNodes
-	}
-
-	// Copy over the desired nodes until the quota is reached
-	for _, desiredNode := range desiredNodes {
-		finalNodes = append(finalNodes, desiredNode)
-		if len(finalNodes) == quota {
-			break
-		}
-	}
-
-	// Return list of nodes
-	return finalNodes, nil
 }
 
 // filterNodesByServiceZone - remove all nodes that don't satisfy service zone annotation
@@ -306,17 +229,6 @@ func (c *CloudVpc) findNodesMatchingLabelValue(nodes []*v1.Node, filterLabel, fi
 	return matchingNodes
 }
 
-// GenerateLoadBalancerName - generate the VPC load balancer name from the cluster ID and Kube service
-func (c *CloudVpc) GenerateLoadBalancerName(service *v1.Service) string {
-	serviceID := strings.ReplaceAll(string(service.ObjectMeta.UID), "-", "")
-	lbName := VpcLbNamePrefix + "-" + c.Config.ClusterID + "-" + serviceID
-	// Limit the LB name to 63 characters
-	if len(lbName) > 63 {
-		lbName = lbName[:63]
-	}
-	return lbName
-}
-
 // getNodeIDs - get the node identifier for each node in the list
 func (c *CloudVpc) getNodeIDs(nodeList []*v1.Node) []string {
 	nodeIDs := []string{}
@@ -343,7 +255,7 @@ func (c *CloudVpc) getNodeInternalIP(node *v1.Node) string {
 	return nodeInternalAddress
 }
 
-// getPoolMemberTargets - get the targets (IP address/Instance ID) for all of the pool members
+// getPoolMemberTargets - get the targets (IP address) for all of the pool members
 func (c *CloudVpc) getPoolMemberTargets(members []*VpcLoadBalancerPoolMember) []string {
 	memberTargets := []string{}
 	for _, member := range members {
@@ -385,26 +297,6 @@ func (c *CloudVpc) getServiceNodeSelectorFilter(service *v1.Service) (string, st
 	return "", ""
 }
 
-// getServiceMemberQuota - retrieve the service annotation used to filter the backend worker nodes
-func (c *CloudVpc) getServiceMemberQuota(service *v1.Service) (int, error) {
-	quota := strings.ToLower(service.ObjectMeta.Annotations[serviceAnnotationMemberQuota])
-	if quota == "" {
-		return defaultPoolMemberQuota, nil
-	}
-	// If quota checking is disabled, return 0
-	if quota == "disable" || quota == "max" {
-		return 0, nil
-	}
-	// Convert quota string to an int
-	val, err := strconv.Atoi(quota)
-	if err != nil {
-		return -1, fmt.Errorf("The annotation %s on service %s/%s is not set to a valid value [%s]",
-			serviceAnnotationMemberQuota, service.ObjectMeta.Namespace, service.ObjectMeta.Name, quota)
-	}
-	// Return result
-	return val, nil
-}
-
 // getServicePoolNames - get list of pool names for the service ports
 func (c *CloudVpc) getServicePoolNames(service *v1.Service) ([]string, error) {
 	poolList := []string{}
@@ -437,6 +329,11 @@ func (c *CloudVpc) getSubnetIDs(subnets []*VpcSubnet) []string {
 	return subnetIDs
 }
 
+// initialize - Initialize the CloudVpc
+func (c *CloudVpc) initialize() error {
+	return c.Config.initialize()
+}
+
 // isServicePortEqualListener - does the specified service port equal the values specified
 func (c *CloudVpc) isServicePortEqualListener(kubePort v1.ServicePort, listener *VpcLoadBalancerListener) bool {
 	return int(listener.Port) == int(kubePort.Port) &&
@@ -453,11 +350,6 @@ func (c *CloudVpc) isServicePortEqualPoolName(kubePort v1.ServicePort, poolName 
 func (c *CloudVpc) isServicePublic(service *v1.Service) bool {
 	value := service.ObjectMeta.Annotations[serviceAnnotationIPType]
 	return value == "" || value == servicePublicLB
-}
-
-// IsVpcConfigStoredInSecret - does the specified secret contain any VPC related config information
-func (c *CloudVpc) IsVpcConfigStoredInSecret(secret *v1.Secret) bool {
-	return false
 }
 
 // validateService - validate the service and the requested features on the service
